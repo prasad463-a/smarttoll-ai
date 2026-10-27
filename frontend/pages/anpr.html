@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI ANPR Simulator - SmartToll AI</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <!-- Custom Modern Stylesheet -->
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body class="d-flex flex-column min-vh-100 bg-light">
+    
+    <!-- Top Navigation -->
+    <nav class="navbar navbar-expand-lg smarttoll-navbar">
+        <div class="container">
+            <a class="navbar-brand" href="../index.html">
+                <i class="fas fa-microchip text-info"></i>
+                <span>SmartToll</span>
+                <span class="brand-badge">AI</span>
+            </a>
+            <button class="navbar-toggler border-0 text-white" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain">
+                <i class="fas fa-bars fs-4"></i>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarMain">
+                <div id="nav-links" class="ms-auto w-100 d-flex justify-content-end">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="flex-grow-1 container py-4 pb-5">
+        <!-- Page Header -->
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 border-bottom pb-4 mb-4">
+            <div>
+                <span class="badge bg-warning bg-opacity-10 text-dark rounded-pill px-3 py-1 small fw-semibold mb-1">
+                    <i class="fas fa-microchip me-1 text-warning"></i> COMPUTER VISION PIPELINE
+                </span>
+                <h2 class="display-6 fw-bold mb-0">AI License Plate Recognition & Gate Simulator</h2>
+                <p class="text-secondary small mb-0 mt-1">Live camera frame inference with YOLOv11 OCR and automated barrier control</p>
+            </div>
+            
+            <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3 py-2 small fw-semibold">
+                <span class="status-dot bg-success status-dot-pulse me-1"></span> Neural Model Ready
+            </span>
+        </div>
+
+        <div id="alert-container"></div>
+
+        <div class="row g-4 justify-content-center">
+            <!-- Left Column: Image Upload & Parameters -->
+            <div class="col-lg-6">
+                <div class="card card-modern p-4 border-0 shadow-md h-100">
+                    <div class="d-flex align-items-center gap-2 mb-3">
+                        <div class="icon-box icon-box-primary" style="width: 42px; height: 42px; font-size: 1.2rem;">
+                            <i class="fas fa-camera"></i>
+                        </div>
+                        <div>
+                            <h5 class="fw-bold mb-0">Toll Camera Feed Input</h5>
+                            <small class="text-muted">Upload an incoming vehicle frame for detection</small>
+                        </div>
+                    </div>
+
+                    <form id="anprForm">
+                        <div class="mb-3" id="tollSelectContainer">
+                            <label for="tollSelect" class="form-label">Active Toll Plaza</label>
+                            <select id="tollSelect" class="form-select" required>
+                                <option value="" disabled selected>Loading toll plazas...</option>
+                            </select>
+                        </div>
+
+                        <!-- Drag and Drop Image Container -->
+                        <div class="mb-4">
+                            <label class="form-label">Vehicle Camera Frame</label>
+                            <div class="dropzone-container" id="dropzone">
+                                <input type="file" id="imageFile" accept="image/*" class="d-none" required>
+                                <div id="dropzonePrompt">
+                                    <i class="fas fa-cloud-arrow-up text-primary fs-1 mb-2"></i>
+                                    <h6 class="fw-bold mb-1">Click to browse or drag & drop photo</h6>
+                                    <p class="text-muted small mb-0">JPEG, PNG, or WebP vehicle snapshots</p>
+                                </div>
+                                <div id="dropzonePreview" class="d-none position-relative">
+                                    <div class="preview-container w-100">
+                                        <div class="laser-scanner d-none" id="liveLaser"></div>
+                                        <div class="radar-grid-overlay"></div>
+                                        <img id="previewImg" src="" alt="Vehicle Preview">
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-light-custom btn-pill position-absolute top-0 end-0 m-2 shadow-sm" id="removeImgBtn">
+                                        <i class="fas fa-xmark"></i> Change Image
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary btn-gradient btn-pill btn-lg w-100 fw-bold shadow-sm" id="processBtn">
+                            <i class="fas fa-bolt me-2"></i> Run AI Plate Recognition
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Right Column: AI Inference & Barrier Simulation -->
+            <div class="col-lg-6">
+                <div class="card card-modern p-4 border-0 shadow-md h-100 d-flex flex-column" id="inferenceCard">
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="icon-box icon-box-accent" style="width: 42px; height: 42px; font-size: 1.2rem;">
+                                <i class="fas fa-brain"></i>
+                            </div>
+                            <div>
+                                <h5 class="fw-bold mb-0">Barrier & Verification Hub</h5>
+                                <small class="text-muted">Real-time gate clearance decision</small>
+                            </div>
+                        </div>
+                        <span class="badge badge-status-info" id="gatePill">STANDBY</span>
+                    </div>
+
+                    <!-- Physical Barrier Simulation Visualizer -->
+                    <div class="gate-visualizer mb-4 justify-content-between" id="gateVisualizer">
+                        <div>
+                            <div class="text-white-50 small text-uppercase">Barrier Arm State</div>
+                            <div class="fw-bold fs-5" id="gateStatusText">
+                                <i class="fas fa-lock text-warning me-1"></i> CLOSED
+                            </div>
+                        </div>
+                        <div id="barrierArmWrapper">
+                            <div class="barrier-arm"></div>
+                        </div>
+                    </div>
+
+                    <!-- Detection Output Area -->
+                    <div class="text-center my-auto p-4 border rounded-3 bg-light" id="resultsPlaceholder">
+                        <i class="fas fa-robot text-muted mb-3" style="font-size: 3rem;"></i>
+                        <h5 class="fw-bold text-secondary mb-1">Awaiting Vehicle Input</h5>
+                        <p class="small text-muted mb-0">Select a camera image and click Run AI Plate Recognition to trigger YOLOv11 OCR analysis.</p>
+                    </div>
+
+                    <div class="d-none" id="resultsActiveArea">
+                        <div class="text-center mb-3">
+                            <span class="text-muted small text-uppercase tracking-wider fw-bold d-block mb-2">Detected License Plate</span>
+                            <div id="detectedPlateBox" class="mb-2"></div>
+                            <div class="text-muted small" id="detectedStatusNote"></div>
+                        </div>
+
+                        <!-- Verification & Database Check -->
+                        <div id="verificationResult" class="mt-3"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- ANPR Payment Selection Modal -->
+    <div class="modal fade" id="anprPaymentModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 1rem;">
+          <div class="modal-header border-bottom-0 pb-0">
+            <h5 class="modal-title fw-bold fs-4"><i class="fas fa-receipt text-success me-2"></i>Select Payment Method</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body pt-3">
+            <div class="card bg-light border-0 mb-3 p-3 rounded-4">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span class="text-muted small">Vehicle Plate</span>
+                    <strong class="font-monospace fs-5 text-dark" id="modalVehiclePlate">-</strong>
+                </div>
+                <div class="d-flex justify-content-between align-items-center pt-2 border-top">
+                    <span class="text-muted fw-semibold">Toll Amount</span>
+                    <span class="fs-3 fw-bold text-success" id="modalTollAmount">₹0.00</span>
+                </div>
+            </div>
+
+            <form id="anprPaymentForm">
+                <input type="hidden" id="modalVehicleId">
+                <input type="hidden" id="modalTollId">
+                <input type="hidden" id="modalAmountValue">
+
+                <div class="mb-4">
+                    <label class="form-label fw-bold text-dark">Payment Mode</label>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <input type="radio" class="btn-check" name="anprPaymentMode" id="anprUpi" value="UPI" checked>
+                            <label class="btn btn-outline-primary rounded-3 p-3 w-100 fw-semibold text-center h-100 d-flex flex-column align-items-center justify-content-center" for="anprUpi">
+                                <i class="fas fa-mobile-screen-button fs-3 mb-1 text-primary"></i>
+                                <span>UPI / QR</span>
+                            </label>
+                        </div>
+                        <div class="col-6">
+                            <input type="radio" class="btn-check" name="anprPaymentMode" id="anprCard" value="CARD">
+                            <label class="btn btn-outline-primary rounded-3 p-3 w-100 fw-semibold text-center h-100 d-flex flex-column align-items-center justify-content-center" for="anprCard">
+                                <i class="fas fa-credit-card fs-3 mb-1 text-primary"></i>
+                                <span>Credit / Debit</span>
+                            </label>
+                        </div>
+                        <div class="col-6">
+                            <input type="radio" class="btn-check" name="anprPaymentMode" id="anprCash" value="CASH">
+                            <label class="btn btn-outline-primary rounded-3 p-3 w-100 fw-semibold text-center h-100 d-flex flex-column align-items-center justify-content-center" for="anprCash">
+                                <i class="fas fa-money-bill-wave fs-3 mb-1 text-success"></i>
+                                <span>Cash Booth</span>
+                            </label>
+                        </div>
+                        <div class="col-6">
+                            <input type="radio" class="btn-check" name="anprPaymentMode" id="anprFastag" value="FASTAG">
+                            <label class="btn btn-outline-primary rounded-3 p-3 w-100 fw-semibold text-center h-100 d-flex flex-column align-items-center justify-content-center" for="anprFastag">
+                                <i class="fas fa-barcode fs-3 mb-1 text-info"></i>
+                                <span>FASTag / Net</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="alert alert-info border-0 bg-info bg-opacity-10 d-flex align-items-center rounded-3 py-2 px-3 mb-3">
+                    <i class="fas fa-info-circle fs-5 me-2 text-info"></i>
+                    <small class="text-dark">Authorizing this transaction will record payment and automatically open the gate barrier.</small>
+                </div>
+
+                <button type="submit" class="btn btn-success btn-lg w-100 rounded-pill shadow-sm fw-bold" id="confirmAnprPayBtn">
+                    Confirm Payment & Open Barrier
+                </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="smarttoll-footer py-3">
+        <div class="container d-flex flex-wrap justify-content-between align-items-center small text-muted">
+            <div>&copy; 2026 SmartToll AI Systems.</div>
+            <div>YOLOv11 Computer Vision & Automatic Barrier Control</div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script type="module">
+        import { checkAuth, setupNavbar, showAlert, showToast } from '../js/app.js';
+        import { apiProcessANPR, apiGetVehicles, apiGetTolls, apiAddPayment, apiGetTollById } from '../js/api.js';
+
+        let currentUser = null;
+        let operatingTollId = null;
+        let operatingTollAmount = 0;
+        let selectedFile = null;
+        let anprPaymentModalInstance = null;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            currentUser = checkAuth();
+            if (!currentUser) return;
+            setupNavbar();
+
+            anprPaymentModalInstance = new bootstrap.Modal(document.getElementById('anprPaymentModal'));
+
+            const role = currentUser.role ? currentUser.role.toUpperCase() : 'USER';
+            const tollSelectContainer = document.getElementById('tollSelectContainer');
+            const tollSelect = document.getElementById('tollSelect');
+
+            if (role === 'ROLE_TOLL_OPERATOR') {
+                // Operator terminal: auto-fetch their assigned toll gate
+                try {
+                    const tollData = await apiGetTollById(currentUser.id);
+                    operatingTollId = tollData.id;
+                    operatingTollAmount = tollData.amount;
+
+                    tollSelectContainer.innerHTML = `
+                        <label class="form-label">Operating Toll Gate</label>
+                        <div class="card bg-info bg-opacity-10 border-0 p-3 rounded-3 d-flex flex-row align-items-center gap-3">
+                            <i class="fas fa-torii-gate fs-2 text-info"></i>
+                            <div>
+                                <h6 class="fw-bold mb-0 text-dark">${tollData.name}</h6>
+                                <div class="text-secondary small"><i class="fas fa-location-dot me-1 text-danger"></i>${tollData.location} &bull; Rate: ₹${tollData.amount}</div>
+                            </div>
+                        </div>
+                    `;
+                } catch (err) {
+                    tollSelectContainer.innerHTML = '<div class="alert alert-danger small">Error connecting to operator plaza data.</div>';
+                }
+            } else {
+                // Driver or Admin: populate toll plazas dropdown
+                try {
+                    const tolls = await apiGetTolls();
+                    tollSelect.innerHTML = '<option value="" disabled selected>Select Toll Gate...</option>';
+                    tolls.forEach(t => {
+                        const opt = document.createElement('option');
+                        opt.value = t.id;
+                        opt.textContent = `${t.name} (${t.location}) - ₹${t.amount}`;
+                        opt.dataset.amount = t.amount;
+                        tollSelect.appendChild(opt);
+                    });
+                } catch (err) {
+                    tollSelect.innerHTML = '<option value="" disabled>Error loading toll plazas</option>';
+                }
+            }
+
+            // Setup Drag & Drop Zone
+            const dropzone = document.getElementById('dropzone');
+            const fileInput = document.getElementById('imageFile');
+            const dropzonePrompt = document.getElementById('dropzonePrompt');
+            const dropzonePreview = document.getElementById('dropzonePreview');
+            const previewImg = document.getElementById('previewImg');
+            const removeImgBtn = document.getElementById('removeImgBtn');
+
+            dropzone.addEventListener('click', (e) => {
+                if (e.target !== removeImgBtn && !removeImgBtn.contains(e.target)) {
+                    fileInput.click();
+                }
+            });
+
+            dropzone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropzone.classList.add('dragover');
+            });
+
+            dropzone.addEventListener('dragleave', () => {
+                dropzone.classList.remove('dragover');
+            });
+
+            dropzone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropzone.classList.remove('dragover');
+                if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                    handleSelectedFile(e.dataTransfer.files[0]);
+                }
+            });
+
+            fileInput.addEventListener('change', () => {
+                if (fileInput.files && fileInput.files[0]) {
+                    handleSelectedFile(fileInput.files[0]);
+                }
+            });
+
+            removeImgBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                selectedFile = null;
+                fileInput.value = '';
+                previewImg.src = '';
+                dropzonePreview.classList.add('d-none');
+                dropzonePrompt.classList.remove('d-none');
+                resetGateUI();
+            });
+
+            function handleSelectedFile(file) {
+                if (!file.type.startsWith('image/')) {
+                    showAlert('alert-container', 'Please select a valid image file (JPEG or PNG).');
+                    return;
+                }
+                selectedFile = file;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    previewImg.src = e.target.result;
+                    dropzonePrompt.classList.add('d-none');
+                    dropzonePreview.classList.remove('d-none');
+                };
+                reader.readAsDataURL(file);
+            }
+
+            // Submit Form for ANPR Processing
+            const form = document.getElementById('anprForm');
+            const processBtn = document.getElementById('processBtn');
+            const liveLaser = document.getElementById('liveLaser');
+
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+
+                if (!selectedFile) {
+                    showAlert('alert-container', 'Please select or upload a vehicle image first.');
+                    return;
+                }
+
+                let tollId, tollAmount;
+                if (role === 'ROLE_TOLL_OPERATOR') {
+                    tollId = operatingTollId;
+                    tollAmount = operatingTollAmount;
+                } else {
+                    tollId = tollSelect.value;
+                    const opt = tollSelect.options[tollSelect.selectedIndex];
+                    tollAmount = opt ? opt.dataset.amount : 0;
+                }
+
+                if (!tollId) {
+                    showAlert('alert-container', 'Please select an operating toll gate.');
+                    return;
+                }
+
+                // UI loading state with live laser animation
+                processBtn.disabled = true;
+                processBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Scanning license plate via AI...';
+                liveLaser.classList.remove('d-none');
+
+                document.getElementById('resultsPlaceholder').classList.add('d-none');
+                document.getElementById('resultsActiveArea').classList.remove('d-none');
+                document.getElementById('detectedPlateBox').innerHTML = '<div class="spinner-border text-info" role="status"></div>';
+                document.getElementById('detectedStatusNote').textContent = 'Analyzing YOLOv11 bounding boxes & OCR characters...';
+                document.getElementById('verificationResult').innerHTML = '';
+
+                try {
+                    const result = await apiProcessANPR(selectedFile);
+                    liveLaser.classList.add('d-none');
+
+                    if (result.vehicleDetected && result.vehicleNumber) {
+                        const cleanPlate = result.vehicleNumber.replace(/\s+/g, '').toUpperCase();
+                        
+                        document.getElementById('detectedPlateBox').innerHTML = `
+                            <div class="hsep-plate d-inline-flex shadow">
+                                <div class="hsep-plate-strip">
+                                    <i class="fas fa-certificate chakra-icon"></i>
+                                    <span>IND</span>
+                                </div>
+                                <span class="hsep-plate-number">${cleanPlate}</span>
+                            </div>
+                        `;
+                        document.getElementById('detectedStatusNote').innerHTML = `
+                            <span class="text-success fw-bold"><i class="fas fa-check-circle me-1"></i> Plate detected with high confidence</span>
+                        `;
+
+                        await verifyPlateWithLedger(cleanPlate, tollId, tollAmount, result);
+
+                    } else {
+                        document.getElementById('detectedPlateBox').innerHTML = `
+                            <div class="alert alert-danger border-0 d-inline-block py-2 px-4 rounded-pill">
+                                <i class="fas fa-triangle-exclamation me-1"></i> No Plate Detected
+                            </div>
+                        `;
+                        document.getElementById('detectedStatusNote').textContent = result.message || 'Unable to resolve license plate in image.';
+                        setGateState(false, 'DENIED');
+                    }
+
+                } catch (err) {
+                    console.error('ANPR Error:', err);
+                    liveLaser.classList.add('d-none');
+                    showAlert('alert-container', 'AI inference failed. Please ensure the Python backend is running.');
+                    resetGateUI();
+                } finally {
+                    processBtn.disabled = false;
+                    processBtn.innerHTML = '<i class="fas fa-bolt me-2"></i> Run AI Plate Recognition';
+                }
+            });
+
+            async function verifyPlateWithLedger(vehicleNumber, tollId, tollAmount, anprResult) {
+                const verificationArea = document.getElementById('verificationResult');
+                verificationArea.innerHTML = '<div class="text-center py-3 text-muted"><div class="spinner-grow spinner-grow-sm text-primary me-2"></div>Cross-referencing database registration...</div>';
+
+                try {
+                    const vehicles = await apiGetVehicles();
+                    const matchedVehicle = vehicles.find(v => v.vehicleNumber.replace(/\s+/g, '').toUpperCase() === vehicleNumber);
+
+                    if (matchedVehicle) {
+                        if (anprResult.gateDecision === 'ALLOW') {
+                            setGateState(true, 'ALLOW');
+                            verificationArea.innerHTML = `
+                                <div class="alert alert-success border-0 shadow-sm p-4 rounded-3 text-start">
+                                    <div class="d-flex align-items-center gap-3 mb-2">
+                                        <i class="fas fa-circle-check fs-2 text-success"></i>
+                                        <div>
+                                            <h5 class="fw-bold mb-0 text-success">Gate Barrier Opening!</h5>
+                                            <small class="text-muted">Vehicle ID #${matchedVehicle.id} &bull; Type: ${matchedVehicle.vehicleType || 'Standard'}</small>
+                                        </div>
+                                    </div>
+                                    <p class="small text-secondary mb-2">Active prepaid pass detected. Vehicle granted non-stop passage.</p>
+                                    <div class="badge badge-status-success">Cleared by AI Gate Controller</div>
+                                </div>
+                            `;
+                        } else {
+                            setGateState(false, 'TOLL REQUIRED');
+                            verificationArea.innerHTML = `
+                                <div class="alert alert-warning border-0 shadow-sm p-4 rounded-3 text-start">
+                                    <div class="d-flex align-items-center gap-3 mb-2">
+                                        <i class="fas fa-hand fs-2 text-warning"></i>
+                                        <div>
+                                            <h5 class="fw-bold mb-0 text-dark">Toll Clearance Required</h5>
+                                            <small class="text-muted">Vehicle #${matchedVehicle.id} does not have an active 24h pass.</small>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center my-3 p-2 bg-white rounded-3 border">
+                                        <span class="text-muted small">Standard Toll Due:</span>
+                                        <strong class="fs-5 text-dark font-monospace">₹${tollAmount}</strong>
+                                    </div>
+                                    <button class="btn btn-primary btn-gradient btn-pill w-100 fw-bold shadow-sm" id="openPayModalBtn">
+                                        <i class="fas fa-credit-card me-1"></i> Pay Toll & Open Barrier
+                                    </button>
+                                </div>
+                            `;
+
+                            document.getElementById('openPayModalBtn').addEventListener('click', () => {
+                                document.getElementById('modalVehiclePlate').textContent = vehicleNumber;
+                                document.getElementById('modalTollAmount').textContent = '₹' + parseFloat(tollAmount).toFixed(2);
+                                document.getElementById('modalVehicleId').value = matchedVehicle.id;
+                                document.getElementById('modalTollId').value = tollId;
+                                document.getElementById('modalAmountValue').value = tollAmount;
+                                anprPaymentModalInstance.show();
+                            });
+                        }
+                    } else {
+                        // Unregistered vehicle
+                        setGateState(false, 'UNREGISTERED');
+                        verificationArea.innerHTML = `
+                            <div class="alert alert-danger border-0 shadow-sm p-4 rounded-3 text-start">
+                                <div class="d-flex align-items-center gap-3 mb-2">
+                                    <i class="fas fa-triangle-exclamation fs-2 text-danger"></i>
+                                    <div>
+                                        <h5 class="fw-bold mb-0 text-danger">Unregistered Vehicle</h5>
+                                        <small class="text-muted">Plate ${vehicleNumber} is not registered in the system.</small>
+                                    </div>
+                                </div>
+                                <p class="small text-secondary mb-0">Manual gatekeeper inspection required or cash payment of ₹${tollAmount}.</p>
+                            </div>
+                        `;
+                    }
+
+                } catch (e) {
+                    console.error("Verification error:", e);
+                    verificationArea.innerHTML = '<div class="alert alert-danger small">Error verifying registration with backend.</div>';
+                }
+            }
+
+            // Settle toll payment from selection modal
+            document.getElementById('anprPaymentForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const vehicleId = document.getElementById('modalVehicleId').value;
+                const tollId = document.getElementById('modalTollId').value;
+                const amount = parseFloat(document.getElementById('modalAmountValue').value);
+                const vehiclePlate = document.getElementById('modalVehiclePlate').textContent;
+
+                const selectedRadio = document.querySelector('input[name="anprPaymentMode"]:checked');
+                const paymentMode = selectedRadio ? selectedRadio.value : 'UPI';
+
+                let modeLabel = 'UPI / QR';
+                if (paymentMode === 'CARD') modeLabel = 'Credit/Debit Card';
+                if (paymentMode === 'CASH') modeLabel = 'Cash at Booth';
+                if (paymentMode === 'FASTAG') modeLabel = 'FASTag / Net Banking';
+
+                const confirmBtn = document.getElementById('confirmAnprPayBtn');
+                confirmBtn.disabled = true;
+                confirmBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span> Processing via ${paymentMode}...`;
+
+                try {
+                    await apiAddPayment(vehicleId, tollId, amount);
+                    anprPaymentModalInstance.hide();
+                    setGateState(true, 'ALLOW');
+
+                    const verificationArea = document.getElementById('verificationResult');
+                    verificationArea.innerHTML = `
+                        <div class="alert alert-success border-0 shadow-sm p-4 rounded-3 text-start">
+                            <div class="d-flex align-items-center gap-3 mb-2">
+                                <i class="fas fa-circle-check fs-2 text-success"></i>
+                                <div>
+                                    <h5 class="fw-bold mb-0 text-success">Payment Succeeded via ${modeLabel}!</h5>
+                                    <small class="text-muted">Vehicle ${vehiclePlate} &bull; ₹${amount.toFixed(2)} recorded in ledger.</small>
+                                </div>
+                            </div>
+                            <p class="small text-secondary mb-0">Barrier has lifted. 24-hour smart toll pass is now active.</p>
+                        </div>
+                    `;
+                    showToast('Gate Lifted', `Payment verified via ${modeLabel} for ${vehiclePlate}. Barrier opened.`, 'success');
+                } catch (err) {
+                    console.error('Payment error:', err);
+                    showAlert('alert-container', 'Failed to settle instant toll payment.');
+                } finally {
+                    confirmBtn.disabled = false;
+                    confirmBtn.innerHTML = 'Confirm Payment & Open Barrier';
+                }
+            });
+
+            function setGateState(isOpen, pillText) {
+                const visualizer = document.getElementById('gateVisualizer');
+                const statusText = document.getElementById('gateStatusText');
+                const gatePill = document.getElementById('gatePill');
+
+                gatePill.textContent = pillText;
+
+                if (isOpen) {
+                    visualizer.classList.add('barrier-open');
+                    statusText.innerHTML = '<i class="fas fa-lock-open text-success me-1"></i> OPEN / LIFTED';
+                    gatePill.className = 'badge badge-status-success';
+                } else {
+                    visualizer.classList.remove('barrier-open');
+                    statusText.innerHTML = '<i class="fas fa-lock text-warning me-1"></i> CLOSED / BARRIER DOWN';
+                    gatePill.className = 'badge badge-status-warning';
+                }
+            }
+
+            function resetGateUI() {
+                document.getElementById('resultsPlaceholder').classList.remove('d-none');
+                document.getElementById('resultsActiveArea').classList.add('d-none');
+                setGateState(false, 'STANDBY');
+            }
+        });
+    </script>
+</body>
+</html>

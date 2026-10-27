@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartToll AI - Next-Gen AI Toll & Fleet Management System</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <!-- Custom Modern Stylesheet -->
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="d-flex flex-column min-vh-100 bg-light">
+    
+    <!-- Top Navigation -->
+    <nav class="navbar navbar-expand-lg smarttoll-navbar">
+        <div class="container">
+            <a class="navbar-brand" href="index.html">
+                <i class="fas fa-microchip text-info"></i>
+                <span>SmartToll</span>
+                <span class="brand-badge">AI</span>
+            </a>
+            <button class="navbar-toggler border-0 text-white" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain">
+                <i class="fas fa-bars fs-4"></i>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarMain">
+                <div id="nav-links" class="ms-auto w-100 d-flex justify-content-end">
+                    <!-- Dynamic Auth-Aware Links Populated by JS -->
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="flex-grow-1">
+        <!-- Hero Section -->
+        <section class="py-5 position-relative overflow-hidden" style="background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%); color: #ffffff;">
+            <div class="container py-4 py-lg-5 position-relative z-1">
+                <div class="row align-items-center g-5">
+                    <div class="col-lg-7 text-center text-lg-start">
+                        <div class="d-inline-flex align-items-center gap-2 px-3 py-1 mb-4 rounded-pill bg-white bg-opacity-10 border border-white border-opacity-10 text-info small fw-semibold">
+                            <span class="status-dot bg-success status-dot-pulse"></span>
+                            <span>COMPUTER VISION ANPR &bull; INSTANT TOLL PASSAGE</span>
+                        </div>
+                        <h1 class="display-4 fw-extrabold text-white mb-4 lh-sm">
+                            Zero Queue Tolls.<br>
+                            <span style="background: linear-gradient(135deg, #38bdf8, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Driven by Artificial Intelligence.</span>
+                        </h1>
+                        <p class="lead text-light mb-4 fs-5 opacity-90 pe-lg-4">
+                            SmartToll AI combines deep learning computer vision with real-time payment reconciliation to recognize license plates, verify 24-hour passes, and clear vehicles at highway speeds without stopping.
+                        </p>
+                        <div class="d-flex flex-wrap gap-3 justify-content-center justify-content-lg-start">
+                            <a href="pages/register.html" class="btn btn-gradient btn-pill btn-lg px-4 shadow-lg">
+                                <i class="fas fa-rocket me-2"></i> Register Your Vehicle
+                            </a>
+                            <a href="pages/anpr.html" class="btn btn-outline-light btn-pill btn-lg px-4">
+                                <i class="fas fa-camera-rotate me-2 text-info"></i> Live AI Simulator
+                            </a>
+                        </div>
+                        
+                        <!-- Trust stats -->
+                        <div class="row g-4 mt-4 pt-3 border-top border-white border-opacity-10 text-center text-lg-start">
+                            <div class="col-4">
+                                <div class="fs-4 fw-bold text-white font-monospace">99.4%</div>
+                                <div class="text-white-50 small">ANPR Accuracy</div>
+                            </div>
+                            <div class="col-4">
+                                <div class="fs-4 fw-bold text-info font-monospace">&lt;120ms</div>
+                                <div class="text-white-50 small">Barrier Latency</div>
+                            </div>
+                            <div class="col-4">
+                                <div class="fs-4 fw-bold text-success font-monospace">100%</div>
+                                <div class="text-white-50 small">Digital Receipts</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Hero Visual Card: Interactive Mock Barrier -->
+                    <div class="col-lg-5">
+                        <div class="card border-0 shadow-2xl rounded-4 overflow-hidden" style="background: #0f172a; border: 1px solid rgba(255,255,255,0.15) !important;">
+                            <div class="p-3 border-bottom border-white border-opacity-10 d-flex justify-content-between align-items-center bg-black bg-opacity-30">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="status-dot bg-danger"></span>
+                                    <span class="status-dot bg-warning"></span>
+                                    <span class="status-dot bg-success"></span>
+                                    <span class="text-white-50 small font-monospace ms-2">LIVE CAM #01 &bull; ORR GATE 4</span>
+                                </div>
+                                <span class="badge bg-success bg-opacity-25 text-success border border-success border-opacity-25 small">
+                                    <i class="fas fa-wifi me-1"></i> ONLINE
+                                </span>
+                            </div>
+                            <div class="p-4 text-center position-relative">
+                                <div class="preview-container w-100 mb-3" style="min-height: 200px; background: radial-gradient(circle, #1e293b 0%, #090d16 100%);">
+                                    <div class="laser-scanner"></div>
+                                    <div class="radar-grid-overlay"></div>
+                                    <div class="p-4 d-flex flex-column align-items-center justify-content-center h-100">
+                                        <i class="fas fa-car-side text-info text-opacity-50 mb-3" style="font-size: 4rem;"></i>
+                                        <div class="hsep-plate mb-2">
+                                            <div class="hsep-plate-strip">
+                                                <i class="fas fa-certificate chakra-icon"></i>
+                                                <span>IND</span>
+                                            </div>
+                                            <span class="hsep-plate-number">TS07HK4921</span>
+                                        </div>
+                                        <div class="badge bg-info bg-opacity-20 text-info border border-info border-opacity-30 small">
+                                            Confidence Score: 98.7%
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="gate-visualizer mt-3 justify-content-between">
+                                    <div class="text-start">
+                                        <div class="text-white-50 small text-uppercase">Barrier Decision</div>
+                                        <div class="fw-bold text-success fs-5"><i class="fas fa-check-circle me-1"></i> ALLOW / PASS</div>
+                                    </div>
+                                    <div class="barrier-open">
+                                        <div class="barrier-arm"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- How It Works Section -->
+        <section class="py-5 bg-white border-bottom">
+            <div class="container py-4">
+                <div class="text-center mb-5">
+                    <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-2 rounded-pill fw-semibold mb-2">EASY 4-STEP PROCESS</span>
+                    <h2 class="display-6 fw-bold">How SmartToll AI Operates</h2>
+                    <p class="text-secondary mx-auto" style="max-width: 600px;">
+                        Designed to deliver effortless convenience for drivers and complete transparency for highway authorities.
+                    </p>
+                </div>
+                
+                <div class="row g-4">
+                    <div class="col-md-6 col-lg-3">
+                        <div class="card card-modern card-lift h-100 p-4 border-0">
+                            <div class="icon-box icon-box-primary mb-3">
+                                <i class="fas fa-user-plus"></i>
+                            </div>
+                            <span class="badge bg-light text-muted border align-self-start mb-2">STEP 01</span>
+                            <h5 class="fw-bold mb-2">Register & Add Car</h5>
+                            <p class="text-secondary small mb-0">Create your driver account and link vehicle registration numbers with certified security.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6 col-lg-3">
+                        <div class="card card-modern card-lift h-100 p-4 border-0">
+                            <div class="icon-box icon-box-accent mb-3">
+                                <i class="fas fa-ticket"></i>
+                            </div>
+                            <span class="badge bg-light text-muted border align-self-start mb-2">STEP 02</span>
+                            <h5 class="fw-bold mb-2">Prepay Toll Pass</h5>
+                            <p class="text-secondary small mb-0">Pre-book toll passes across select plazas using UPI, cards, or net banking with 24h validity.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6 col-lg-3">
+                        <div class="card card-modern card-lift h-100 p-4 border-0">
+                            <div class="icon-box icon-box-warning mb-3">
+                                <i class="fas fa-camera"></i>
+                            </div>
+                            <span class="badge bg-light text-muted border align-self-start mb-2">STEP 03</span>
+                            <h5 class="fw-bold mb-2">Camera Detects</h5>
+                            <p class="text-secondary small mb-0">YOLOv11 neural network captures high-speed frames, extracts the plate, and normalizes characters.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6 col-lg-3">
+                        <div class="card card-modern card-lift h-100 p-4 border-0">
+                            <div class="icon-box icon-box-success mb-3">
+                                <i class="fas fa-door-open"></i>
+                            </div>
+                            <span class="badge bg-light text-muted border align-self-start mb-2">STEP 04</span>
+                            <h5 class="fw-bold mb-2">Automated Passage</h5>
+                            <p class="text-secondary small mb-0">System verifies active clearance and lifts barrier in milliseconds with digital receipt sent.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Features Showcase -->
+        <section class="py-5 bg-light">
+            <div class="container py-4">
+                <div class="row align-items-center g-5">
+                    <div class="col-lg-6">
+                        <span class="badge bg-info bg-opacity-10 text-info px-3 py-2 rounded-pill fw-semibold mb-2">ENTERPRISE GRADE</span>
+                        <h2 class="display-6 fw-bold mb-4">Engineered for Reliability, Speed & Compliance</h2>
+                        
+                        <div class="d-flex gap-3 mb-4">
+                            <div class="icon-box icon-box-primary flex-shrink-0">
+                                <i class="fas fa-brain"></i>
+                            </div>
+                            <div>
+                                <h5 class="fw-bold mb-1">State-of-the-Art YOLOv11 Model</h5>
+                                <p class="text-secondary small mb-0">Trained on thousands of diverse lighting, angle, and weather scenarios for dependable day and night license plate detection.</p>
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-3 mb-4">
+                            <div class="icon-box icon-box-success flex-shrink-0">
+                                <i class="fas fa-shield-halved"></i>
+                            </div>
+                            <div>
+                                <h5 class="fw-bold mb-1">Stateless JWT Security & Role Authorization</h5>
+                                <p class="text-secondary small mb-0">Enforces role-based isolation between Vehicle Owners, Toll Booth Operators, and System Administrators.</p>
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-3">
+                            <div class="icon-box icon-box-accent flex-shrink-0">
+                                <i class="fas fa-bolt"></i>
+                            </div>
+                            <div>
+                                <h5 class="fw-bold mb-1">Sub-Second Processing Engine</h5>
+                                <p class="text-secondary small mb-0">Eliminates toll-lane congestion, reducing highway idle times, carbon emissions, and driver frustration.</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-lg-6">
+                        <div class="row g-3">
+                            <div class="col-6">
+                                <div class="card card-modern p-4 text-center border-0">
+                                    <i class="fas fa-gauge-high text-primary fs-2 mb-3"></i>
+                                    <h4 class="fw-bold mb-1">High Speed</h4>
+                                    <p class="text-muted small mb-0">Real-time lane throughput</p>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="card card-modern p-4 text-center border-0">
+                                    <i class="fas fa-file-invoice text-success fs-2 mb-3"></i>
+                                    <h4 class="fw-bold mb-1">Audit Ready</h4>
+                                    <p class="text-muted small mb-0">Immutable digital logs</p>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="card card-modern p-4 text-center border-0">
+                                    <i class="fas fa-mobile-screen-button text-warning fs-2 mb-3"></i>
+                                    <h4 class="fw-bold mb-1">Mobile First</h4>
+                                    <p class="text-muted small mb-0">Responsive on all screens</p>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="card card-modern p-4 text-center border-0">
+                                    <i class="fas fa-cloud-arrow-up text-info fs-2 mb-3"></i>
+                                    <h4 class="fw-bold mb-1">REST API</h4>
+                                    <p class="text-muted small mb-0">Clean Spring Boot backend</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- CTA Section -->
+        <section class="py-5 bg-white text-center">
+            <div class="container py-4">
+                <div class="card bg-gradient-hero text-white p-5 rounded-4 border-0 shadow-xl mx-auto position-relative overflow-hidden" style="background: var(--gradient-hero); max-width: 900px;">
+                    <div class="position-relative z-1">
+                        <h2 class="display-6 fw-bold mb-3 text-white">Experience Smart Highway Automation Today</h2>
+                        <p class="lead text-white-50 mb-4 mx-auto" style="max-width: 600px;">
+                            Sign in to manage your vehicles, inspect toll plazas, and test the integrated ANPR computer vision pipeline.
+                        </p>
+                        <div class="d-flex flex-wrap justify-content-center gap-3">
+                            <a href="pages/register.html" class="btn btn-primary btn-pill btn-lg px-4 shadow">
+                                Create Free Driver Account
+                            </a>
+                            <a href="pages/operator-login.html" class="btn btn-outline-light btn-pill btn-lg px-4">
+                                Toll Operator Access
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="smarttoll-footer">
+        <div class="container">
+            <div class="row g-4 mb-4">
+                <div class="col-md-5">
+                    <div class="d-flex align-items-center gap-2 mb-3">
+                        <i class="fas fa-microchip text-info fs-4"></i>
+                        <span class="fs-5 fw-bold text-white">SmartToll AI</span>
+                    </div>
+                    <p class="text-secondary small pe-md-4 mb-0">
+                        Next-generation automated highway toll collection system powered by YOLOv11 deep learning and Spring Boot micro-architecture.
+                    </p>
+                </div>
+                <div class="col-6 col-md-3">
+                    <h6 class="text-white fw-bold mb-3 small text-uppercase tracking-wider">Quick Navigation</h6>
+                    <ul class="list-unstyled small mb-0 d-flex flex-column gap-2">
+                        <li><a href="pages/login.html">Driver Login</a></li>
+                        <li><a href="pages/register.html">Register Vehicle</a></li>
+                        <li><a href="pages/operator-login.html">Toll Operator Portal</a></li>
+                        <li><a href="pages/anpr.html">AI Simulator</a></li>
+                    </ul>
+                </div>
+                <div class="col-6 col-md-4">
+                    <h6 class="text-white fw-bold mb-3 small text-uppercase tracking-wider">System Status</h6>
+                    <div class="d-flex align-items-center gap-2 mb-2 text-success small">
+                        <span class="status-dot bg-success status-dot-pulse"></span>
+                        <span class="fw-semibold">All AI & REST Services Operational</span>
+                    </div>
+                    <p class="text-muted small mb-0">Spring Boot Backend on port 8080. Python ANPR inference running on port 5000.</p>
+                </div>
+            </div>
+            <div class="pt-3 border-top border-secondary border-opacity-25 d-flex flex-wrap justify-content-between align-items-center small text-muted">
+                <div>&copy; 2026 SmartToll AI Systems. All rights reserved.</div>
+                <div>Production-Ready Full-Stack Architecture</div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script type="module">
+        import { setupNavbar } from './js/app.js';
+        document.addEventListener('DOMContentLoaded', () => {
+            setupNavbar();
+        });
+    </script>
+</body>
+</html>

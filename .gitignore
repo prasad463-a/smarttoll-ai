@@ -1,0 +1,31 @@
+# Large Archives (GitHub blocks files > 100MB)
+*.zip
+
+# Training Dataset (510MB - Keep repo lightweight and fast to clone)
+SmartToll-AI/dataset/
+
+# Java / Spring Boot build output
+smartToll/target/
+smartToll/.mvn/timing.properties
+
+# Python cache & virtual environments
+__pycache__/
+*/__pycache__/
+*/*/__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.env
+
+# IDE & Editor files
+.idea/
+.vscode/
+.metadata/
+.settings/
+*.log
+
+# OS generated files
+Thumbs.db
+Desktop.ini
+.DS_Store

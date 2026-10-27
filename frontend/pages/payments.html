@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transaction History & Receipts - SmartToll AI</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <!-- Custom Modern Stylesheet -->
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body class="d-flex flex-column min-vh-100 bg-light">
+    
+    <!-- Top Navigation -->
+    <nav class="navbar navbar-expand-lg smarttoll-navbar">
+        <div class="container">
+            <a class="navbar-brand" href="../index.html">
+                <i class="fas fa-microchip text-info"></i>
+                <span>SmartToll</span>
+                <span class="brand-badge">AI</span>
+            </a>
+            <button class="navbar-toggler border-0 text-white" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain">
+                <i class="fas fa-bars fs-4"></i>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarMain">
+                <div id="nav-links" class="ms-auto w-100 d-flex justify-content-end">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="flex-grow-1 container py-4 pb-5">
+        <!-- Page Header -->
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 border-bottom pb-4 mb-4">
+            <div>
+                <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3 py-1 small fw-semibold mb-1">
+                    <i class="fas fa-receipt me-1"></i> AUDIT TRAIL
+                </span>
+                <h2 class="display-6 fw-bold mb-0">Toll Transactions & Receipts</h2>
+                <p class="text-secondary small mb-0 mt-1">Verified digital toll payments, highway crossing permits, and tax invoices</p>
+            </div>
+            
+            <a href="tolls.html" class="btn btn-primary btn-gradient btn-pill shadow-sm">
+                <i class="fas fa-ticket me-1"></i> New Advance Pass
+            </a>
+        </div>
+
+        <div id="alert-container"></div>
+
+        <!-- Filter & Search Controls -->
+        <div class="card card-modern p-3 mb-4 border-0">
+            <div class="row g-3 align-items-center">
+                <div class="col-md-5">
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="fas fa-magnifying-glass"></i></span>
+                        <input type="text" class="form-control" id="searchPaymentInput" placeholder="Filter by vehicle, transaction ID, or toll...">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="btn-group w-100" role="group">
+                        <input type="radio" class="btn-check" name="statusFilter" id="filterAll" value="ALL" checked>
+                        <label class="btn btn-light-custom btn-sm" for="filterAll">All</label>
+
+                        <input type="radio" class="btn-check" name="statusFilter" id="filterSuccess" value="SUCCESS">
+                        <label class="btn btn-light-custom btn-sm text-success" for="filterSuccess">Cleared</label>
+
+                        <input type="radio" class="btn-check" name="statusFilter" id="filterPending" value="PENDING">
+                        <label class="btn btn-light-custom btn-sm text-warning" for="filterPending">Pending</label>
+                    </div>
+                </div>
+                <div class="col-md-3 text-md-end text-muted small">
+                    Showing <strong id="paymentCountDisplay" class="text-dark">0</strong> records
+                </div>
+            </div>
+        </div>
+
+        <!-- Transactions Table -->
+        <div class="table-modern-wrapper">
+            <div class="table-responsive">
+                <table class="table-modern">
+                    <thead>
+                        <tr>
+                            <th class="ps-4">Transaction ID</th>
+                            <th>Vehicle Number</th>
+                            <th>Toll Plaza</th>
+                            <th>Amount</th>
+                            <th>Timestamp</th>
+                            <th>Status</th>
+                            <th class="pe-4 text-center">Receipt</th>
+                        </tr>
+                    </thead>
+                    <tbody id="paymentTableBody">
+                        <tr>
+                            <td colspan="7" class="text-center py-5">
+                                <div class="spinner-border text-primary spinner-border-sm me-2" role="status"></div>
+                                <span class="text-muted small">Loading transactions from secure ledger...</span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Digital Receipt Modal -->
+    <div class="modal fade" id="receiptModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" style="max-width: 480px;">
+            <div class="modal-content border-0 shadow-xl rounded-4">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold"><i class="fas fa-file-invoice text-success me-2"></i>Official Toll Receipt</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4" id="printableReceipt">
+                    <div class="text-center pb-3 border-bottom mb-3">
+                        <div class="d-flex justify-content-center align-items-center gap-2 mb-1">
+                            <i class="fas fa-microchip text-info fs-4"></i>
+                            <span class="fs-4 fw-bold">SmartToll AI</span>
+                        </div>
+                        <div class="text-muted small">National Highway Automated Toll System</div>
+                    </div>
+
+                    <div class="card bg-light border-0 p-3 rounded-3 mb-3 small">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">Transaction ID:</span>
+                            <strong class="font-monospace text-dark" id="receiptTxnId">TXN123</strong>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">Vehicle Plate:</span>
+                            <strong class="font-monospace text-primary fs-6" id="receiptVehicle">TS07XX1234</strong>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">Toll Plaza:</span>
+                            <strong class="text-dark" id="receiptToll">Plaza Name</strong>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">Payment Date:</span>
+                            <span class="text-dark" id="receiptDate">Date</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">Valid Until:</span>
+                            <span class="text-dark" id="receiptValid">24 Hours</span>
+                        </div>
+                        <div class="d-flex justify-content-between pt-2 border-top">
+                            <span class="fw-bold">Total Paid:</span>
+                            <strong class="fs-5 text-success font-monospace" id="receiptAmount">₹0.00</strong>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-outline-primary btn-pill flex-grow-1" onclick="window.printReceipt()">
+                            <i class="fas fa-print me-1"></i> Print Receipt
+                        </button>
+                        <button type="button" class="btn btn-light-custom btn-pill px-4" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="smarttoll-footer py-3">
+        <div class="container d-flex flex-wrap justify-content-between align-items-center small text-muted">
+            <div>&copy; 2026 SmartToll AI Systems.</div>
+            <div>Verifiable Electronic Toll Receipts</div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script type="module">
+        import { checkAuth, setupNavbar, showAlert } from '../js/app.js';
+        import { apiGetPayments, apiGetVehicles } from '../js/api.js';
+
+        let currentUser = null;
+        let cachedPayments = [];
+        let receiptModalInstance = null;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            currentUser = checkAuth();
+            if (!currentUser) return;
+            setupNavbar();
+
+            receiptModalInstance = new bootstrap.Modal(document.getElementById('receiptModal'));
+
+            // Search and Status filters
+            document.getElementById('searchPaymentInput').addEventListener('input', applyFilters);
+            document.querySelectorAll('input[name="statusFilter"]').forEach(radio => {
+                radio.addEventListener('change', applyFilters);
+            });
+
+            await loadPayments();
+        });
+
+        async function loadPayments() {
+            const tbody = document.getElementById('paymentTableBody');
+            try {
+                const [allPayments, allVehicles] = await Promise.all([
+                    apiGetPayments(),
+                    apiGetVehicles()
+                ]);
+
+                const role = currentUser.role ? currentUser.role.toUpperCase() : 'USER';
+                if (role === 'ADMIN' || role === 'ROLE_ADMIN') {
+                    cachedPayments = allPayments;
+                } else if (role === 'ROLE_TOLL_OPERATOR') {
+                    cachedPayments = allPayments.filter(p => p.toll && p.toll.id === currentUser.id);
+                } else {
+                    const myVehicleIds = allVehicles.filter(v => v.user && v.user.id === currentUser.id).map(v => v.id);
+                    cachedPayments = allPayments.filter(p => p.vehicle && myVehicleIds.includes(p.vehicle.id));
+                }
+
+                applyFilters();
+
+            } catch (err) {
+                console.error("Error loading payments:", err);
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="text-center py-5 text-danger">
+                            <i class="fas fa-triangle-exclamation fa-2x mb-2"></i>
+                            <div>Error retrieving transaction history.</div>
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        function applyFilters() {
+            const query = document.getElementById('searchPaymentInput').value.toLowerCase().trim();
+            const statusFilter = document.querySelector('input[name="statusFilter"]:checked')?.value || 'ALL';
+
+            const filtered = cachedPayments.filter(p => {
+                const vehicleNum = (p.vehicle?.vehicleNumber || '').toLowerCase();
+                const txnId = (p.transactionId || ('TXN' + p.id)).toLowerCase();
+                const tollName = (p.toll?.name || p.toll?.tollName || '').toLowerCase();
+                const status = (p.paymentStatus || 'SUCCESS').toUpperCase();
+
+                const matchesQuery = vehicleNum.includes(query) || txnId.includes(query) || tollName.includes(query);
+                const matchesStatus = statusFilter === 'ALL' || status === statusFilter;
+
+                return matchesQuery && matchesStatus;
+            });
+
+            document.getElementById('paymentCountDisplay').textContent = filtered.length;
+            renderTable(filtered);
+        }
+
+        function renderTable(payments) {
+            const tbody = document.getElementById('paymentTableBody');
+
+            if (payments.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="text-center py-5 text-muted">
+                            <div class="icon-box icon-box-primary mx-auto mb-3" style="width: 56px; height: 56px; font-size: 1.4rem;">
+                                <i class="fas fa-receipt text-secondary"></i>
+                            </div>
+                            <h5 class="fw-bold mb-1">No Transactions Found</h5>
+                            <p class="small text-muted mb-0">No toll payment records match your current filter.</p>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            // Newest first
+            const sorted = [...payments].sort((a, b) => new Date(b.paymentTime || 0) - new Date(a.paymentTime || 0));
+
+            tbody.innerHTML = sorted.map(p => {
+                const vehicleNum = p.vehicle?.vehicleNumber || 'N/A';
+                const tollName = p.toll?.name || p.toll?.tollName || 'Plaza Lane';
+                const txnId = p.transactionId || ('TXN' + p.id);
+                const statusClass = p.paymentStatus === 'SUCCESS' ? 'badge-status-success' : 'badge-status-danger';
+                const formattedDate = p.paymentTime ? new Date(p.paymentTime).toLocaleString(undefined, {
+                    year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                }) : 'N/A';
+
+                const receiptData = JSON.stringify({
+                    txnId: txnId,
+                    vehicle: vehicleNum,
+                    toll: tollName,
+                    amount: p.amount || 0,
+                    date: formattedDate,
+                    validUntil: p.validUntil ? new Date(p.validUntil).toLocaleString() : '24 Hours from Payment'
+                }).replace(/"/g, '&quot;');
+
+                return `
+                    <tr>
+                        <td class="ps-4">
+                            <span class="font-monospace small fw-bold text-muted">${txnId}</span>
+                        </td>
+                        <td>
+                            <span class="font-monospace fw-bold text-dark">${vehicleNum}</span>
+                        </td>
+                        <td class="fw-medium">${tollName}</td>
+                        <td class="fw-bold text-dark font-monospace">₹${p.amount ? p.amount.toFixed(2) : '0.00'}</td>
+                        <td class="text-secondary small">${formattedDate}</td>
+                        <td>
+                            <span class="badge-status ${statusClass}">
+                                <i class="fas fa-circle-check"></i> ${p.paymentStatus || 'CLEARED'}
+                            </span>
+                        </td>
+                        <td class="pe-4 text-center">
+                            <button class="btn btn-outline-primary btn-sm btn-pill" onclick='window.viewReceipt(${receiptData})'>
+                                <i class="fas fa-file-invoice me-1"></i> Receipt
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        window.viewReceipt = (data) => {
+            document.getElementById('receiptTxnId').textContent = data.txnId;
+            document.getElementById('receiptVehicle').textContent = data.vehicle;
+            document.getElementById('receiptToll').textContent = data.toll;
+            document.getElementById('receiptDate').textContent = data.date;
+            document.getElementById('receiptValid').textContent = data.validUntil;
+            document.getElementById('receiptAmount').textContent = '₹' + parseFloat(data.amount).toFixed(2);
+            receiptModalInstance.show();
+        };
+
+        window.printReceipt = () => {
+            window.print();
+        };
+    </script>
+</body>
+</html>

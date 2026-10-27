@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Vehicles - SmartToll AI</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <!-- Custom Modern Stylesheet -->
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body class="d-flex flex-column min-vh-100 bg-light">
+    
+    <!-- Top Navigation -->
+    <nav class="navbar navbar-expand-lg smarttoll-navbar">
+        <div class="container">
+            <a class="navbar-brand" href="../index.html">
+                <i class="fas fa-microchip text-info"></i>
+                <span>SmartToll</span>
+                <span class="brand-badge">AI</span>
+            </a>
+            <button class="navbar-toggler border-0 text-white" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain">
+                <i class="fas fa-bars fs-4"></i>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarMain">
+                <div id="nav-links" class="ms-auto w-100 d-flex justify-content-end">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="flex-grow-1 container py-4 pb-5">
+        <!-- Page Header -->
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 border-bottom pb-4 mb-4">
+            <div>
+                <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill px-3 py-1 small fw-semibold mb-1">
+                    <i class="fas fa-car me-1"></i> FLEET MANAGEMENT
+                </span>
+                <h2 class="display-6 fw-bold mb-0">My Registered Vehicles</h2>
+                <p class="text-secondary small mb-0 mt-1">Vehicles linked to your account for automated ANPR camera recognition</p>
+            </div>
+            
+            <button class="btn btn-primary btn-gradient btn-pill shadow-sm" id="toggleAddBtn">
+                <i class="fas fa-plus me-1"></i> Register New Vehicle
+            </button>
+        </div>
+
+        <div id="alert-container"></div>
+
+        <!-- Add Vehicle Form Card (Hidden by default, smooth toggle) -->
+        <div class="card card-modern p-4 p-md-5 mb-4 border-0 shadow-md d-none" id="addFormCard" style="border-top: 4px solid var(--primary) !important;">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="icon-box icon-box-primary" style="width: 42px; height: 42px; font-size: 1.2rem;">
+                        <i class="fas fa-plus"></i>
+                    </div>
+                    <div>
+                        <h4 class="fw-bold mb-0">Register New Vehicle</h4>
+                        <p class="text-muted small mb-0">Ensure license plate exactly matches the physical high-security plate</p>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" id="closeFormBtn" aria-label="Close"></button>
+            </div>
+
+            <form id="addVehicleForm" class="mt-3">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label for="vehicleNumber" class="form-label">Registration Number</label>
+                        <div class="input-group">
+                            <span class="input-group-text font-monospace fw-bold bg-warning bg-opacity-25 text-dark">IND</span>
+                            <input type="text" class="form-control font-monospace text-uppercase fw-bold" id="vehicleNumber" required placeholder="e.g. TS07AB1234" maxlength="15">
+                        </div>
+                        <div class="form-text small text-muted">Standard Indian format without hyphens or spaces</div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <label for="vehicleType" class="form-label">Vehicle Classification</label>
+                        <select class="form-select" id="vehicleType" required>
+                            <option value="" disabled selected>Select class...</option>
+                            <option value="CAR">Car / SUV / Jeep (Class 1)</option>
+                            <option value="TRUCK">Truck / Heavy Vehicle (Class 2)</option>
+                            <option value="BUS">Bus / Commercial Passenger (Class 3)</option>
+                            <option value="BIKE">Two Wheeler (Motorcycle)</option>
+                        </select>
+                        <div class="form-text small text-muted">Determines standardized highway toll rate category</div>
+                    </div>
+                </div>
+
+                <div class="mt-4 pt-3 border-top d-flex justify-content-end gap-2">
+                    <button type="button" class="btn btn-light-custom btn-pill px-4" id="cancelFormBtn">Cancel</button>
+                    <button type="submit" class="btn btn-primary btn-gradient btn-pill px-4 shadow-sm" id="saveVehicleBtn">
+                        <i class="fas fa-check me-1"></i> Save Vehicle
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Filter & Search Bar -->
+        <div class="card card-modern p-3 mb-4 border-0">
+            <div class="row g-2 align-items-center">
+                <div class="col-md-6">
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="fas fa-magnifying-glass"></i></span>
+                        <input type="text" class="form-control" id="searchVehicleInput" placeholder="Filter by plate number or vehicle type...">
+                    </div>
+                </div>
+                <div class="col-md-6 text-md-end text-muted small">
+                    Showing <strong id="vehicleCountDisplay" class="text-dark">0</strong> vehicles
+                </div>
+            </div>
+        </div>
+
+        <!-- Vehicles Grid Container -->
+        <div class="row g-4" id="vehiclesGrid">
+            <div class="col-12 text-center py-5">
+                <div class="spinner-border text-primary" role="status"></div>
+                <div class="mt-3 text-muted small">Retrieving registered vehicles from database...</div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Details Modal -->
+    <div class="modal fade" id="vehicleDetailsModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" style="max-width: 480px;">
+            <div class="modal-content border-0 shadow-lg rounded-4">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold"><i class="fas fa-id-card text-primary me-2"></i>Vehicle Certification</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4 text-center">
+                    <div id="modalPlateVisual" class="mb-3"></div>
+                    <div class="card bg-light border-0 p-3 rounded-3 text-start small mb-3">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">Classification</span>
+                            <strong id="modalVehicleType" class="text-dark">Car</strong>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">AI Camera Detection</span>
+                            <span class="badge bg-success bg-opacity-20 text-success fw-bold">ACTIVE &bull; YOLOV11</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">Total Plazas Passed</span>
+                            <strong id="modalPassCount" class="text-dark">0</strong>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Total Toll Paid</span>
+                            <strong id="modalTotalPaid" class="text-primary fs-6">₹0.00</strong>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-light-custom btn-pill w-100" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="smarttoll-footer py-3">
+        <div class="container d-flex flex-wrap justify-content-between align-items-center small text-muted">
+            <div>&copy; 2026 SmartToll AI Systems.</div>
+            <div>High Security Registration Plate (HSRP) Integrated</div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script type="module">
+        import { checkAuth, setupNavbar, showAlert, showToast, showConfirmModal } from '../js/app.js';
+        import { apiGetVehicles, apiAddVehicle, apiDeleteVehicle, apiGetPayments } from '../js/api.js';
+
+        let currentUser = null;
+        let cachedVehicles = [];
+        let cachedPayments = [];
+        let detailsModalInstance = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            currentUser = checkAuth();
+            if (!currentUser) return;
+            setupNavbar();
+
+            detailsModalInstance = new bootstrap.Modal(document.getElementById('vehicleDetailsModal'));
+
+            // Toggle form
+            const addFormCard = document.getElementById('addFormCard');
+            const toggleAddBtn = document.getElementById('toggleAddBtn');
+            const closeFormBtn = document.getElementById('closeFormBtn');
+            const cancelFormBtn = document.getElementById('cancelFormBtn');
+
+            const openForm = () => {
+                addFormCard.classList.remove('d-none');
+                document.getElementById('vehicleNumber').focus();
+            };
+            const closeForm = () => {
+                addFormCard.classList.add('d-none');
+                document.getElementById('addVehicleForm').reset();
+            };
+
+            toggleAddBtn.addEventListener('click', openForm);
+            closeFormBtn.addEventListener('click', closeForm);
+            cancelFormBtn.addEventListener('click', closeForm);
+
+            // Add Vehicle Form Submit
+            document.getElementById('addVehicleForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const num = document.getElementById('vehicleNumber').value.toUpperCase().replace(/\s+/g, '').trim();
+                const type = document.getElementById('vehicleType').value;
+
+                if (!num || !type) {
+                    showAlert('alert-container', 'Please provide vehicle registration number and category.');
+                    return;
+                }
+
+                const saveBtn = document.getElementById('saveVehicleBtn');
+                saveBtn.disabled = true;
+                saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Saving...';
+
+                try {
+                    await apiAddVehicle(num, type);
+                    showToast('Vehicle Saved!', `Vehicle ${num} registered and ready for ANPR scanning.`, 'success');
+                    closeForm();
+                    await loadVehicles();
+                } catch (err) {
+                    console.error('Add vehicle error:', err);
+                    showAlert('alert-container', 'Failed to register vehicle. The number may already exist or backend returned error.');
+                } finally {
+                    saveBtn.disabled = false;
+                    saveBtn.innerHTML = '<i class="fas fa-check me-1"></i> Save Vehicle';
+                }
+            });
+
+            // Search filter
+            document.getElementById('searchVehicleInput').addEventListener('input', (e) => {
+                const query = e.target.value.toLowerCase().trim();
+                renderFilteredVehicles(query);
+            });
+
+            loadVehicles();
+        });
+
+        async function loadVehicles() {
+            const grid = document.getElementById('vehiclesGrid');
+            try {
+                const [allVehicles, allPayments] = await Promise.all([
+                    apiGetVehicles(),
+                    apiGetPayments()
+                ]);
+
+                cachedPayments = allPayments;
+
+                // Role filtering
+                const role = currentUser.role ? currentUser.role.toUpperCase() : 'USER';
+                if (role === 'ADMIN' || role === 'ROLE_ADMIN') {
+                    cachedVehicles = allVehicles;
+                } else {
+                    cachedVehicles = allVehicles.filter(v => v.user && v.user.id === currentUser.id);
+                }
+
+                renderFilteredVehicles('');
+
+            } catch (err) {
+                console.error("Error loading vehicles:", err);
+                grid.innerHTML = `
+                    <div class="col-12 text-center py-5 text-danger">
+                        <i class="fas fa-triangle-exclamation fa-2x mb-3"></i>
+                        <h5>Unable to connect to database</h5>
+                        <p class="small text-muted">Please verify the Spring Boot server is running on port 8080.</p>
+                    </div>
+                `;
+            }
+        }
+
+        function renderFilteredVehicles(query) {
+            const grid = document.getElementById('vehiclesGrid');
+            const countDisplay = document.getElementById('vehicleCountDisplay');
+
+            const filtered = cachedVehicles.filter(v => {
+                const num = (v.vehicleNumber || '').toLowerCase();
+                const type = (v.vehicleType || '').toLowerCase();
+                return num.includes(query) || type.includes(query);
+            });
+
+            countDisplay.textContent = filtered.length;
+
+            if (filtered.length === 0) {
+                if (cachedVehicles.length === 0) {
+                    // Empty state
+                    grid.innerHTML = `
+                        <div class="col-12">
+                            <div class="card card-modern p-5 text-center border-0">
+                                <div class="icon-box icon-box-primary mx-auto mb-3" style="width: 72px; height: 72px; font-size: 2rem;">
+                                    <i class="fas fa-car-side"></i>
+                                </div>
+                                <h4 class="fw-bold mb-2">No Vehicles Registered</h4>
+                                <p class="text-secondary small mb-4 mx-auto" style="max-width: 440px;">
+                                    Add your vehicle license plate to enable automatic ANPR gate opening and instant 24-hour highway pass booking.
+                                </p>
+                                <div>
+                                    <button class="btn btn-primary btn-gradient btn-pill px-4 shadow-sm" onclick="document.getElementById('toggleAddBtn').click()">
+                                        <i class="fas fa-plus me-1"></i> Register Your First Vehicle
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    grid.innerHTML = `
+                        <div class="col-12 text-center py-5 text-muted">
+                            <i class="fas fa-magnifying-glass fs-3 mb-2"></i>
+                            <p class="mb-0">No vehicles match "${query}"</p>
+                        </div>
+                    `;
+                }
+                return;
+            }
+
+            grid.innerHTML = '';
+
+            filtered.forEach(vehicle => {
+                const vehiclePayments = cachedPayments.filter(p => p.vehicle && p.vehicle.id === vehicle.id);
+                const successfulPayments = vehiclePayments.filter(p => p.paymentStatus === 'SUCCESS');
+                const totalSpent = successfulPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
+
+                let iconClass = 'fa-car';
+                if (vehicle.vehicleType === 'TRUCK') iconClass = 'fa-truck';
+                else if (vehicle.vehicleType === 'BUS') iconClass = 'fa-bus';
+                else if (vehicle.vehicleType === 'BIKE') iconClass = 'fa-motorcycle';
+
+                const col = document.createElement('div');
+                col.className = 'col-md-6 col-lg-4';
+                col.innerHTML = `
+                    <div class="card card-modern card-lift h-100 border-0 p-4">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <div class="icon-box icon-box-primary" style="width: 46px; height: 46px; font-size: 1.25rem;">
+                                <i class="fas ${iconClass}"></i>
+                            </div>
+                            <span class="badge-status badge-status-success">
+                                <i class="fas fa-circle-check"></i> Verified
+                            </span>
+                        </div>
+
+                        <!-- Embossed Plate Display -->
+                        <div class="mb-3 text-center">
+                            <div class="hsep-plate w-100 justify-content-center">
+                                <div class="hsep-plate-strip">
+                                    <i class="fas fa-certificate chakra-icon"></i>
+                                    <span>IND</span>
+                                </div>
+                                <span class="hsep-plate-number fs-4">${vehicle.vehicleNumber}</span>
+                            </div>
+                        </div>
+
+                        <div class="card bg-light border-0 p-3 rounded-3 mb-3 small">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-muted">Type:</span>
+                                <strong class="text-dark">${vehicle.vehicleType || 'Standard'}</strong>
+                            </div>
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="text-muted">Gates Passed:</span>
+                                <strong class="text-dark">${vehiclePayments.length}</strong>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span class="text-muted">Total Toll Paid:</span>
+                                <strong class="text-primary">₹${totalSpent.toFixed(2)}</strong>
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2 mt-auto">
+                            <button class="btn btn-light-custom btn-sm btn-pill flex-grow-1" onclick="window.viewVehicleDetails('${vehicle.vehicleNumber}', '${vehicle.vehicleType}', ${vehiclePayments.length}, ${totalSpent})">
+                                <i class="fas fa-eye me-1"></i> Details
+                            </button>
+                            <a href="tolls.html" class="btn btn-outline-primary btn-sm btn-pill flex-grow-1">
+                                <i class="fas fa-ticket me-1"></i> Buy Pass
+                            </a>
+                            <button class="btn btn-outline-danger btn-sm btn-pill px-3" onclick="window.deleteVehicleItem(${vehicle.id}, '${vehicle.vehicleNumber}')" title="Delete Vehicle">
+                                <i class="fas fa-trash-can"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(col);
+            });
+        }
+
+        window.viewVehicleDetails = (number, type, passCount, totalPaid) => {
+            document.getElementById('modalPlateVisual').innerHTML = `
+                <div class="hsep-plate d-inline-flex">
+                    <div class="hsep-plate-strip">
+                        <i class="fas fa-certificate chakra-icon"></i>
+                        <span>IND</span>
+                    </div>
+                    <span class="hsep-plate-number">${number}</span>
+                </div>
+            `;
+            document.getElementById('modalVehicleType').textContent = type || 'Car';
+            document.getElementById('modalPassCount').textContent = passCount;
+            document.getElementById('modalTotalPaid').textContent = `₹${parseFloat(totalPaid).toFixed(2)}`;
+            detailsModalInstance.show();
+        };
+
+        window.deleteVehicleItem = async (id, number) => {
+            const confirmed = await showConfirmModal({
+                title: 'Delete Vehicle?',
+                message: `Are you sure you want to remove ${number} from your fleet? Any pre-paid passes will be revoked.`,
+                confirmText: 'Yes, Delete',
+                isDanger: true
+            });
+
+            if (confirmed) {
+                try {
+                    await apiDeleteVehicle(id);
+                    showToast('Vehicle Removed', `Vehicle ${number} has been deleted.`, 'success');
+                    await loadVehicles();
+                } catch (err) {
+                    showAlert('alert-container', 'Failed to delete vehicle from backend database.');
+                }
+            }
+        };
+    </script>
+</body>
+</html>

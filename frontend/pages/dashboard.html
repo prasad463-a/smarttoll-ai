@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Executive Dashboard - SmartToll AI</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <!-- Custom Modern Stylesheet -->
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body class="d-flex flex-column min-vh-100 bg-light">
+    
+    <!-- Top Navigation -->
+    <nav class="navbar navbar-expand-lg smarttoll-navbar">
+        <div class="container">
+            <a class="navbar-brand" href="../index.html">
+                <i class="fas fa-microchip text-info"></i>
+                <span>SmartToll</span>
+                <span class="brand-badge">AI</span>
+            </a>
+            <button class="navbar-toggler border-0 text-white" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain">
+                <i class="fas fa-bars fs-4"></i>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarMain">
+                <div id="nav-links" class="ms-auto w-100 d-flex justify-content-end">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="flex-grow-1 container py-4">
+        <!-- Dashboard Header -->
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 border-bottom pb-4 mb-4">
+            <div>
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill px-3 py-1 small fw-semibold">
+                        <i class="fas fa-chart-line me-1"></i> OVERVIEW
+                    </span>
+                    <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3 py-1 small fw-semibold">
+                        <span class="status-dot bg-success status-dot-pulse me-1"></span> AI Engine Online
+                    </span>
+                </div>
+                <h2 class="display-6 fw-bold mb-0">
+                    <span id="timeGreeting">Welcome back</span>, <span id="userName" class="text-primary">User</span>!
+                </h2>
+                <p class="text-secondary small mb-0 mt-1" id="currentDateStr">Real-time toll clearance & vehicle management summary</p>
+            </div>
+            
+            <div class="d-flex gap-2">
+                <a href="vehicles.html" class="btn btn-outline-primary btn-pill">
+                    <i class="fas fa-plus me-1"></i> Add Vehicle
+                </a>
+                <a href="tolls.html" class="btn btn-primary btn-gradient btn-pill shadow-sm">
+                    <i class="fas fa-ticket me-1"></i> Book Toll Pass
+                </a>
+            </div>
+        </div>
+
+        <div id="alert-container"></div>
+
+        <!-- 4 Key Stat Cards -->
+        <div class="row g-4 mb-4">
+            <div class="col-sm-6 col-lg-3">
+                <div class="card card-modern card-hero-stat h-100">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <span class="text-muted small fw-bold text-uppercase tracking-wider">Registered Fleet</span>
+                        <div class="icon-box icon-box-primary" style="width: 44px; height: 44px; font-size: 1.2rem;">
+                            <i class="fas fa-car"></i>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-baseline gap-2 mb-1">
+                        <h2 class="display-6 fw-bold text-dark mb-0 font-monospace" id="statVehicles">
+                            <span class="skeleton" style="width: 50px; height: 38px;"></span>
+                        </h2>
+                        <span class="text-muted small">Vehicles</span>
+                    </div>
+                    <div class="text-secondary small mt-2">
+                        <i class="fas fa-circle-check text-success me-1"></i> All verified in database
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-sm-6 col-lg-3">
+                <div class="card card-modern card-hero-stat h-100">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <span class="text-muted small fw-bold text-uppercase tracking-wider">Toll Clearances</span>
+                        <div class="icon-box icon-box-accent" style="width: 44px; height: 44px; font-size: 1.2rem;">
+                            <i class="fas fa-receipt"></i>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-baseline gap-2 mb-1">
+                        <h2 class="display-6 fw-bold text-dark mb-0 font-monospace" id="statPayments">
+                            <span class="skeleton" style="width: 50px; height: 38px;"></span>
+                        </h2>
+                        <span class="text-muted small">Passes</span>
+                    </div>
+                    <div class="text-secondary small mt-2">
+                        Total spent: <strong class="text-dark" id="statTotalSpent">₹0.00</strong>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-sm-6 col-lg-3">
+                <div class="card card-modern card-hero-stat h-100">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <span class="text-muted small fw-bold text-uppercase tracking-wider">Successful Gates</span>
+                        <div class="icon-box icon-box-success" style="width: 44px; height: 44px; font-size: 1.2rem;">
+                            <i class="fas fa-circle-check"></i>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-baseline gap-2 mb-1">
+                        <h2 class="display-6 fw-bold text-dark mb-0 font-monospace" id="statSuccessPayments">
+                            <span class="skeleton" style="width: 50px; height: 38px;"></span>
+                        </h2>
+                        <span class="text-muted small">Approved</span>
+                    </div>
+                    <div class="text-secondary small mt-2">
+                        <span class="badge badge-status-success">100% Success Rate</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-sm-6 col-lg-3">
+                <div class="card card-modern card-hero-stat h-100">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <span class="text-muted small fw-bold text-uppercase tracking-wider">AI ANPR Status</span>
+                        <div class="icon-box icon-box-warning" style="width: 44px; height: 44px; font-size: 1.2rem;">
+                            <i class="fas fa-bolt"></i>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-baseline gap-2 mb-1">
+                        <h2 class="display-6 fw-bold text-dark mb-0 font-monospace" id="statActivity">
+                            <span class="skeleton" style="width: 70px; height: 38px;"></span>
+                        </h2>
+                    </div>
+                    <div class="text-secondary small mt-2">
+                        <a href="anpr.html" class="text-primary fw-semibold small text-decoration-none">
+                            Test Camera Feed &rarr;
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Launchers Row -->
+        <div class="card card-modern p-4 border-0 mb-4 bg-white">
+            <h5 class="fw-bold mb-3"><i class="fas fa-bolt text-warning me-2"></i>Quick Operations</h5>
+            <div class="d-flex flex-wrap gap-2">
+                <a href="vehicles.html" class="btn btn-light-custom btn-pill">
+                    <i class="fas fa-car text-primary me-1"></i> Register New Car
+                </a>
+                <a href="tolls.html" class="btn btn-light-custom btn-pill">
+                    <i class="fas fa-road text-info me-1"></i> Explore Toll Gates
+                </a>
+                <a href="payments.html" class="btn btn-light-custom btn-pill">
+                    <i class="fas fa-file-invoice text-success me-1"></i> View All Receipts
+                </a>
+                <a href="anpr.html" class="btn btn-light-custom btn-pill">
+                    <i class="fas fa-camera text-warning me-1"></i> Run ANPR Simulator
+                </a>
+            </div>
+        </div>
+
+        <!-- Recent Transactions Card -->
+        <div class="table-modern-wrapper">
+            <div class="card-header-clean bg-white p-3 p-md-4">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="icon-box icon-box-primary" style="width: 36px; height: 36px; font-size: 1rem;">
+                        <i class="fas fa-clock-rotate-left"></i>
+                    </div>
+                    <div>
+                        <h5 class="fw-bold mb-0">Recent Toll Activity</h5>
+                        <div class="text-muted small">Latest gate clearances and digital payment receipts</div>
+                    </div>
+                </div>
+                <div>
+                    <a href="payments.html" class="btn btn-outline-primary btn-sm btn-pill">
+                        View All Activity <i class="fas fa-arrow-right ms-1"></i>
+                    </a>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table-modern">
+                    <thead>
+                        <tr>
+                            <th class="ps-4">Vehicle Number</th>
+                            <th>Toll Plaza</th>
+                            <th>Fee Amount</th>
+                            <th>Cleared Date</th>
+                            <th class="pe-4 text-center">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="paymentsTableBody">
+                        <tr>
+                            <td colspan="5" class="text-center py-5">
+                                <div class="spinner-border text-primary spinner-border-sm me-2" role="status"></div>
+                                <span class="text-muted small">Synchronizing toll data from server...</span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="smarttoll-footer py-3">
+        <div class="container d-flex flex-wrap justify-content-between align-items-center small text-muted">
+            <div>&copy; 2026 SmartToll AI Systems.</div>
+            <div>Stateless JWT Session Active</div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script type="module">
+        import { checkAuth, setupNavbar, showAlert } from '../js/app.js';
+        import { apiGetVehicles, apiGetPayments, apiGetTolls } from '../js/api.js';
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const user = checkAuth();
+            if (!user) return;
+            setupNavbar();
+
+            // Set greeting based on time of day
+            const hour = new Date().getHours();
+            let greeting = 'Welcome';
+            if (hour < 12) greeting = 'Good morning';
+            else if (hour < 18) greeting = 'Good afternoon';
+            else greeting = 'Good evening';
+            
+            document.getElementById('timeGreeting').textContent = greeting;
+            document.getElementById('userName').textContent = user.name || 'User';
+            
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            document.getElementById('currentDateStr').textContent = new Date().toLocaleDateString(undefined, options);
+
+            try {
+                // Fetch data in parallel
+                const [allVehicles, allPayments, allTolls] = await Promise.all([
+                    apiGetVehicles(),
+                    apiGetPayments(),
+                    apiGetTolls()
+                ]);
+
+                // Filter by role
+                const role = user.role ? user.role.toUpperCase() : 'USER';
+                let myVehicles = [];
+                let myPayments = [];
+
+                if (role === 'ADMIN' || role === 'ROLE_ADMIN') {
+                    myVehicles = allVehicles;
+                    myPayments = allPayments;
+                } else if (role === 'ROLE_TOLL_OPERATOR') {
+                    myVehicles = [];
+                    myPayments = allPayments.filter(p => p.toll && p.toll.id === user.id);
+                } else {
+                    myVehicles = allVehicles.filter(v => v.user && v.user.id === user.id);
+                    const myVehicleIds = myVehicles.map(v => v.id);
+                    myPayments = allPayments.filter(p => p.vehicle && myVehicleIds.includes(p.vehicle.id));
+                }
+
+                const successfulPayments = myPayments.filter(p => p.paymentStatus === 'SUCCESS');
+                const totalSpent = successfulPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
+
+                // Update UI Stats
+                document.getElementById('statVehicles').textContent = myVehicles.length;
+                document.getElementById('statPayments').textContent = myPayments.length;
+                document.getElementById('statSuccessPayments').textContent = successfulPayments.length;
+                document.getElementById('statTotalSpent').textContent = `₹${totalSpent.toFixed(2)}`;
+                document.getElementById('statActivity').innerHTML = myPayments.length > 0 
+                    ? '<span class="text-success fs-5 fw-bold"><i class="fas fa-check-circle me-1"></i>Active</span>' 
+                    : '<span class="text-muted fs-5 fw-bold">Standby</span>';
+
+                // Render Table
+                const tbody = document.getElementById('paymentsTableBody');
+                if (myPayments.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="5" class="text-center py-5">
+                                <div class="icon-box icon-box-primary mx-auto mb-3" style="width: 60px; height: 60px; font-size: 1.5rem;">
+                                    <i class="fas fa-receipt text-muted"></i>
+                                </div>
+                                <h5 class="fw-bold mb-1">No Toll Activity Yet</h5>
+                                <p class="text-muted small mb-3">You have not recorded any toll payments or gate passages.</p>
+                                <a href="tolls.html" class="btn btn-primary btn-sm btn-pill px-4">Book Advance Pass</a>
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                // Sort newest first & display top 5
+                const sortedPayments = myPayments.sort((a, b) => new Date(b.paymentTime || 0) - new Date(a.paymentTime || 0)).slice(0, 5);
+
+                tbody.innerHTML = sortedPayments.map(p => {
+                    const statusClass = p.paymentStatus === 'SUCCESS' ? 'badge-status-success' : 'badge-status-danger';
+                    const formattedDate = p.paymentTime ? new Date(p.paymentTime).toLocaleString(undefined, {
+                        month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                    }) : 'Recent';
+
+                    return `
+                        <tr>
+                            <td class="ps-4">
+                                <div class="d-flex align-items-center gap-2">
+                                    <i class="fas fa-car text-secondary"></i>
+                                    <span class="font-monospace fw-bold text-dark">${p.vehicle?.vehicleNumber || 'Unknown'}</span>
+                                </div>
+                            </td>
+                            <td class="fw-medium">${p.toll?.name || p.toll?.tollName || 'Plaza Lane'}</td>
+                            <td class="fw-bold text-dark">₹${p.amount ? p.amount.toFixed(2) : '0.00'}</td>
+                            <td class="text-secondary small">${formattedDate}</td>
+                            <td class="pe-4 text-center">
+                                <span class="badge-status ${statusClass}">
+                                    <i class="fas fa-circle-check"></i> ${p.paymentStatus || 'CLEARED'}
+                                </span>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+
+            } catch (error) {
+                console.error("Dashboard data load error:", error);
+                document.getElementById('paymentsTableBody').innerHTML = `
+                    <tr>
+                        <td colspan="5" class="text-center py-4 text-danger">
+                            <i class="fas fa-triangle-exclamation me-2"></i> Failed to synchronize dashboard data from backend server.
+                        </td>
+                    </tr>
+                `;
+            }
+        });
+    </script>
+</body>
+</html>

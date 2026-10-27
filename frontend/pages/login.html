@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In - SmartToll AI</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <!-- Custom Modern Stylesheet -->
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body class="d-flex flex-column min-vh-100 bg-light">
+    
+    <!-- Top Navigation -->
+    <nav class="navbar navbar-expand-lg smarttoll-navbar">
+        <div class="container">
+            <a class="navbar-brand" href="../index.html">
+                <i class="fas fa-microchip text-info"></i>
+                <span>SmartToll</span>
+                <span class="brand-badge">AI</span>
+            </a>
+            <button class="navbar-toggler border-0 text-white" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain">
+                <i class="fas fa-bars fs-4"></i>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarMain">
+                <div id="nav-links" class="ms-auto w-100 d-flex justify-content-end">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="flex-grow-1 d-flex align-items-center py-5">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-md-7 col-lg-5 col-xl-4">
+                    <div class="card card-modern p-4 p-md-5 border-0 shadow-lg">
+                        <div class="text-center mb-4">
+                            <div class="icon-box icon-box-primary mx-auto mb-3">
+                                <i class="fas fa-shield-halved"></i>
+                            </div>
+                            <h3 class="fw-bold text-dark mb-1">Welcome Back</h3>
+                            <p class="text-muted small">Sign in to manage your vehicles & toll passes</p>
+                        </div>
+                        
+                        <div id="alert-container"></div>
+                        
+                        <form id="loginForm" novalidate>
+                            <div class="mb-3">
+                                <label for="email" class="form-label">Email Address</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-envelope"></i></span>
+                                    <input type="email" class="form-control" id="email" required placeholder="name@example.com" autocomplete="username">
+                                </div>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <label for="password" class="form-label mb-0">Password</label>
+                                    <span class="text-muted small">JWT Protected</span>
+                                </div>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                                    <input type="password" class="form-control" id="password" required placeholder="Enter your password" autocomplete="current-password">
+                                    <button class="password-toggle-btn" type="button" id="togglePasswordBtn" title="Toggle password visibility">
+                                        <i class="fas fa-eye" id="togglePasswordIcon"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary btn-gradient w-100 py-2 btn-pill fw-bold" id="submitBtn">
+                                <span>Sign In</span>
+                                <i class="fas fa-arrow-right ms-1"></i>
+                            </button>
+                        </form>
+
+                        <div class="text-center mt-4 pt-3 border-top">
+                            <p class="text-muted small mb-2">
+                                New to SmartToll? <a href="register.html" class="fw-semibold text-primary">Create an account</a>
+                            </p>
+                            <p class="mb-0">
+                                <a href="operator-login.html" class="text-muted small text-decoration-none">
+                                    <i class="fas fa-torii-gate me-1 text-info"></i> Toll Operator Portal &rarr;
+                                </a>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="smarttoll-footer py-3">
+        <div class="container text-center small text-muted">
+            &copy; 2026 SmartToll AI Systems. Secure Stateless Authentication.
+        </div>
+    </footer>
+
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script type="module">
+        import { apiLogin } from '../js/api.js';
+        import { showAlert, showToast, setupNavbar } from '../js/app.js';
+
+        document.addEventListener('DOMContentLoaded', () => {
+            setupNavbar();
+            
+            // Redirect if already logged in
+            if (sessionStorage.getItem('smartTollUser')) {
+                window.location.href = 'dashboard.html';
+                return;
+            }
+
+            // Password visibility toggle
+            const toggleBtn = document.getElementById('togglePasswordBtn');
+            const passwordInput = document.getElementById('password');
+            const toggleIcon = document.getElementById('togglePasswordIcon');
+
+            toggleBtn.addEventListener('click', () => {
+                const isPassword = passwordInput.getAttribute('type') === 'password';
+                passwordInput.setAttribute('type', isPassword ? 'text' : 'password');
+                toggleIcon.className = isPassword ? 'fas fa-eye-slash' : 'fas fa-eye';
+            });
+
+            // Form submission
+            const form = document.getElementById('loginForm');
+            const submitBtn = document.getElementById('submitBtn');
+
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const email = document.getElementById('email').value.trim();
+                const password = document.getElementById('password').value;
+
+                if (!email || !password) {
+                    showAlert('alert-container', 'Please provide both email and password.');
+                    return;
+                }
+
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Authenticating...';
+
+                try {
+                    const user = await apiLogin(email, password);
+                    if (user && (user.id || user.token)) {
+                        sessionStorage.setItem('smartTollUser', JSON.stringify(user));
+                        showToast('Welcome!', 'Authentication successful. Redirecting to your dashboard...', 'success');
+                        setTimeout(() => {
+                            window.location.href = 'dashboard.html';
+                        }, 600);
+                    } else {
+                        showAlert('alert-container', 'Invalid email or password. Please try again.');
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = '<span>Sign In</span> <i class="fas fa-arrow-right ms-1"></i>';
+                    }
+                } catch (error) {
+                    console.error('Login error:', error);
+                    showAlert('alert-container', 'Login failed: Invalid credentials or backend service unreachable.');
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<span>Sign In</span> <i class="fas fa-arrow-right ms-1"></i>';
+                }
+            });
+        });
+    </script>
+</body>
+</html>
