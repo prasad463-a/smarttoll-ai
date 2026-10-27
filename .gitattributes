@@ -1,0 +1,4 @@
+# Tell GitHub Linguist to treat frontend markup as vendored UI assets
+frontend/** linguist-vendored
+*.html linguist-detectable=false
+*.css linguist-detectable=false
