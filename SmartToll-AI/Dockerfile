@@ -2,7 +2,7 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies for OpenCV, PyTorch OpenMP, and EasyOCR
+# Install system dependencies for OpenCV and PyTorch OpenMP
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libgl1 \
     libglib2.0-0 \
@@ -16,9 +16,6 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
-
-# Pre-cache EasyOCR model in image
-RUN python -c "import easyocr; easyocr.Reader(['en'])"
 
 ENV PORT=10000
 EXPOSE 10000

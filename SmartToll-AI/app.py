@@ -1,10 +1,8 @@
 import os
+import re
 from pathlib import Path
 from flask import Flask, request, jsonify
-from ultralytics import YOLO
-import easyocr
 import cv2
-import re
 
 app = Flask(__name__)
 try:
@@ -15,16 +13,35 @@ except ImportError:
 
 BASE_DIR = Path(__file__).resolve().parent
 
-# Load trained YOLO model
+# Trained YOLO model path
 MODEL_PATH = (
     BASE_DIR / "runs" / "detect" / "smarttoll_test"
     / "weights" / "best.pt"
 )
 
-model = YOLO(str(MODEL_PATH))
+# Lazy-loaded singletons to prevent high memory startup spikes on cloud containers
+_model = None
+_reader = None
 
-# Load EasyOCR
-reader = easyocr.Reader(["en"])
+def get_model():
+    global _model
+    if _model is None:
+        import torch
+        torch.set_num_threads(1)
+        from ultralytics import YOLO
+        print("Loading YOLO model from:", MODEL_PATH)
+        _model = YOLO(str(MODEL_PATH))
+    return _model
+
+def get_reader():
+    global _reader
+    if _reader is None:
+        import torch
+        torch.set_num_threads(1)
+        import easyocr
+        print("Loading EasyOCR Reader...")
+        _reader = easyocr.Reader(["en"], gpu=False)
+    return _reader
 
 
 @app.route("/", methods=["GET"])
@@ -42,7 +59,7 @@ def process_image():
     data = request.get_json(silent=True) or {}
     image_path = data.get("imagePath")
 
-    # Also support direct file upload via multipart/form-data
+    # Support direct file upload via multipart/form-data
     if not image_path and "image" in request.files:
         uploaded_file = request.files["image"]
         temp_dest = BASE_DIR / "temp_upload.jpg"
@@ -65,6 +82,10 @@ def process_image():
             "message": "Could not read image file"
         }), 400
 
+    # Get models (lazy loaded)
+    model = get_model()
+    reader = get_reader()
+
     # Detect license plates using YOLO
     results = model.predict(
         source=image,
@@ -74,10 +95,7 @@ def process_image():
 
     for result in results:
         for box in result.boxes:
-            # Get bounding box coordinates
             x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
-
-            # Crop the license plate
             plate = image[y1:y2, x1:x2]
 
             if plate.size == 0:
