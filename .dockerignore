@@ -1,6 +1,5 @@
 .git/
 smartToll/target/
 SmartToll-AI/dataset/
-SmartToll-AI/runs/
 *.zip
 frontend/
