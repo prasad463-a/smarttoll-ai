@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: smarttoll-backend
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: PORT
+        value: 8080
+
+  - type: web
+    name: smarttoll-ai-service
+    runtime: docker
+    rootDir: SmartToll-AI
+    dockerfilePath: ./Dockerfile
+    plan: free
+    region: singapore
+    envVars:
+      - key: PORT
+        value: 5000
