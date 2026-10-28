@@ -5,8 +5,8 @@ export const getApiBase = () => {
     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
         return 'http://localhost:8080';
     }
-    // Production default: can be set anytime via setBackendUrl("https://<your-render-url>")
-    return localStorage.getItem('SMARTTOLL_API_URL') || 'http://localhost:8080';
+    // Production cloud backend: Automatically used when opened on mobile, Vercel, or any other device!
+    return 'https://smarttoll-ai.onrender.com';
 };
 
 // Helper for users to switch backend URL easily in production
