@@ -1,14 +1,17 @@
 import os
 from pathlib import Path
 from flask import Flask, request, jsonify
-from flask_cors import CORS
 from ultralytics import YOLO
 import easyocr
 import cv2
 import re
 
 app = Flask(__name__)
-CORS(app)
+try:
+    from flask_cors import CORS
+    CORS(app)
+except ImportError:
+    pass
 
 BASE_DIR = Path(__file__).resolve().parent
 
