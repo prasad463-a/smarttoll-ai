@@ -1,80 +1,18 @@
-# from flask import Flask, request, jsonify
-# import easyocr
-# import re
-
-# app = Flask(__name__)
-
-# # Create EasyOCR reader
-# reader = easyocr.Reader(['en'])
-
-
-# @app.route("/anpr/process", methods=["POST"])
-# def process_image():
-
-#     data = request.get_json()
-
-#     image_path = data.get("imagePath")
-
-#     print("Received image:", image_path)
-
-#     # Read text from image
-#     result = reader.readtext(image_path)
-
-#     print("OCR Result:", result)
-
-#     # Find vehicle number
-#     vehicle_number = None
-
-#     for detection in result:
-
-#         text = detection[1].upper()
-
-#         # Remove spaces and special characters
-#         cleaned_text = re.sub(r'[^A-Z0-9]', '', text)
-
-#         print("Checking:", cleaned_text)
-
-#         # Indian vehicle number pattern
-#         if re.match(
-#             r'^[A-Z]{2}[0-9]{1,2}[A-Z]{1,3}[0-9]{4}$',
-#             cleaned_text
-#         ):
-#             vehicle_number = cleaned_text
-#             break
-
-#     # Vehicle number found
-#     if vehicle_number:
-
-#         return jsonify({
-#             "vehicleNumber": vehicle_number,
-#             "vehicleDetected": True,
-#             "message": "Vehicle number detected successfully"
-#         })
-
-#     # Vehicle number not found
-#     return jsonify({
-#         "vehicleNumber": None,
-#         "vehicleDetected": False,
-#         "message": "Vehicle number not detected"
-#     })
-
-
-# if __name__ == "__main__":
-#     app.run(port=5000)
-
-
+import os
 from pathlib import Path
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 from ultralytics import YOLO
 import easyocr
 import cv2
 import re
 
 app = Flask(__name__)
+CORS(app)
 
 BASE_DIR = Path(__file__).resolve().parent
 
-# Load your trained YOLO model
+# Load trained YOLO model
 MODEL_PATH = (
     BASE_DIR / "runs" / "detect" / "smarttoll_test"
     / "weights" / "best.pt"
@@ -86,17 +24,33 @@ model = YOLO(str(MODEL_PATH))
 reader = easyocr.Reader(["en"])
 
 
+@app.route("/", methods=["GET"])
+def health_check():
+    return jsonify({
+        "status": "UP",
+        "service": "SmartToll AI ANPR Service",
+        "yoloModel": str(MODEL_PATH.name),
+        "version": "1.0.0"
+    })
+
+
 @app.route("/anpr/process", methods=["POST"])
 def process_image():
-
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     image_path = data.get("imagePath")
+
+    # Also support direct file upload via multipart/form-data
+    if not image_path and "image" in request.files:
+        uploaded_file = request.files["image"]
+        temp_dest = BASE_DIR / "temp_upload.jpg"
+        uploaded_file.save(str(temp_dest))
+        image_path = str(temp_dest)
 
     if not image_path:
         return jsonify({
             "vehicleDetected": False,
             "vehicleNumber": None,
-            "message": "Image path is missing"
+            "message": "Image path or image file is missing"
         }), 400
 
     image = cv2.imread(image_path)
@@ -105,7 +59,7 @@ def process_image():
         return jsonify({
             "vehicleDetected": False,
             "vehicleNumber": None,
-            "message": "Could not read image"
+            "message": "Could not read image file"
         }), 400
 
     # Detect license plates using YOLO
@@ -116,13 +70,9 @@ def process_image():
     )
 
     for result in results:
-
         for box in result.boxes:
-
             # Get bounding box coordinates
-            x1, y1, x2, y2 = map(
-                int, box.xyxy[0].tolist()
-            )
+            x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
 
             # Crop the license plate
             plate = image[y1:y2, x1:x2]
@@ -134,20 +84,12 @@ def process_image():
             detections = reader.readtext(plate)
 
             for detection in detections:
-
                 text = detection[1].upper()
-
-                cleaned_text = re.sub(
-                    r"[^A-Z0-9]", "", text
-                )
-
-                print("OCR:", cleaned_text)
+                cleaned_text = re.sub(r"[^A-Z0-9]", "", text)
+                print("OCR candidate:", cleaned_text)
 
                 # Indian vehicle number format
-                if re.match(
-                    r"^[A-Z]{2}[0-9]{1,2}[A-Z]{1,3}[0-9]{4}$",
-                    cleaned_text
-                ):
+                if re.match(r"^[A-Z]{2}[0-9]{1,2}[A-Z]{1,3}[0-9]{4}$", cleaned_text):
                     return jsonify({
                         "vehicleNumber": cleaned_text,
                         "vehicleDetected": True,
@@ -162,4 +104,5 @@ def process_image():
 
 
 if __name__ == "__main__":
-    app.run(port=5000)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)

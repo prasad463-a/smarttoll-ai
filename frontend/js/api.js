@@ -1,4 +1,27 @@
-const API_BASE = 'http://localhost:8080';
+// Smart API Base URL: Uses custom URL from localStorage, or localhost for local dev
+export const getApiBase = () => {
+    const custom = localStorage.getItem('SMARTTOLL_API_URL');
+    if (custom) return custom.replace(/\/$/, '');
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        return 'http://localhost:8080';
+    }
+    // Production default: can be set anytime via setBackendUrl("https://<your-render-url>")
+    return localStorage.getItem('SMARTTOLL_API_URL') || 'http://localhost:8080';
+};
+
+// Helper for users to switch backend URL easily in production
+window.setBackendUrl = (url) => {
+    if (url) {
+        localStorage.setItem('SMARTTOLL_API_URL', url.trim());
+        console.log('SmartToll backend URL updated to: ' + url);
+    } else {
+        localStorage.removeItem('SMARTTOLL_API_URL');
+        console.log('Reset SmartToll backend URL to default.');
+    }
+    window.location.reload();
+};
+
+const API_BASE = getApiBase();
 
 // Helper to get auth headers
 function getHeaders() {
