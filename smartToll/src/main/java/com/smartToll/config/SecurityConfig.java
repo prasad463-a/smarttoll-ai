@@ -51,6 +51,8 @@ public class SecurityConfig {
                     "/user/login",
                     "/toll/add",
                     "/toll/login",
+                    "/toll/getall",
+                    "/anpr/**",
                     "/error"
                 ).permitAll()
 
@@ -62,8 +64,7 @@ public class SecurityConfig {
                 .requestMatchers(
                     "/vehicle/**",
                     "/toll/**",
-                    "/payment/**",
-                    "/anpr/**"
+                    "/payment/**"
                 ).hasAnyRole("USER", "ADMIN", "TOLL_OPERATOR")
 
                 // All other endpoints require authentication
