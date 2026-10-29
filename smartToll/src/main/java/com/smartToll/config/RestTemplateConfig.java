@@ -11,8 +11,8 @@ public class RestTemplateConfig {
     @Bean
     public RestTemplate restTemplate() {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(15000);
-        factory.setReadTimeout(45000);
+        factory.setConnectTimeout(25000); // 25s connect timeout for cloud wakeups
+        factory.setReadTimeout(75000);    // 75s read timeout to safely allow AI cold-start inference
         return new RestTemplate(factory);
     }
 }

@@ -172,39 +172,56 @@ def process_image():
     # Step 1: Detect license plates using YOLO with no_grad
     try:
         with torch.no_grad():
-            results = model.predict(source=image, conf=0.18, verbose=False)
+            results = model.predict(source=image, conf=0.18, imgsz=416, verbose=False)
 
         h_img, w_img = image.shape[:2]
+        
+        # Collect and rank detected boxes by confidence score descending
+        all_boxes = []
         for result in results:
             for box in result.boxes:
-                x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
-                # Add slight padding around bounding box to capture plate edges
-                px1 = max(0, x1 - 8)
-                py1 = max(0, y1 - 8)
-                px2 = min(w_img, x2 + 8)
-                py2 = min(h_img, y2 + 8)
-                plate = image[py1:py2, px1:px2]
+                all_boxes.append(box)
+        all_boxes.sort(key=lambda b: float(b.conf[0]) if b.conf is not None else 0.0, reverse=True)
 
-                if plate.size == 0:
-                    continue
+        for box in all_boxes[:2]:  # Check at most top 2 highest confidence candidate boxes
+            x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
+            # Add slight padding around bounding box to capture plate edges
+            px1 = max(0, x1 - 8)
+            py1 = max(0, y1 - 8)
+            px2 = min(w_img, x2 + 8)
+            py2 = min(h_img, y2 + 8)
+            plate = image[py1:py2, px1:px2]
 
-                hp, wp = plate.shape[:2]
-                # Test full plate, bottom half (for 2-line plates), and top half
-                slices = [
-                    [[0, wp, 0, hp]],
-                    [[0, wp, int(hp * 0.35), hp]],
-                    [[0, wp, 0, int(hp * 0.65)]]
-                ]
+            if plate.size == 0:
+                continue
 
-                for s in slices:
-                    with torch.no_grad():
-                        rec_results = reader.recognize(plate, horizontal_list=s, free_list=[])
-                    for item in rec_results:
-                        raw_text = item[1]
-                        plate_num = extract_vehicle_number(raw_text)
-                        if plate_num and plate_num not in detected_plates:
-                            print(f"Detected candidate: '{raw_text}' -> '{plate_num}'")
-                            detected_plates.append(plate_num)
+            hp, wp = plate.shape[:2]
+            # Test full plate and bottom half (for 2-line plates)
+            slices = [
+                [[0, wp, 0, hp]],
+                [[0, wp, int(hp * 0.35), hp]],
+                [[0, wp, 0, int(hp * 0.65)]]
+            ]
+
+            found_standard = False
+            for s in slices:
+                with torch.no_grad():
+                    rec_results = reader.recognize(plate, horizontal_list=s, free_list=[])
+                for item in rec_results:
+                    raw_text = item[1]
+                    plate_num = extract_vehicle_number(raw_text)
+                    if plate_num and plate_num not in detected_plates:
+                        print(f"Detected candidate: '{raw_text}' -> '{plate_num}'")
+                        detected_plates.append(plate_num)
+                        if re.match(r"^[A-Z]{2}[0-9]{1,2}[A-Z]{0,3}[0-9]{4}$", plate_num):
+                            found_standard = True
+                            break
+                if found_standard:
+                    break
+
+            # If standard plate format identified, no need to check lower-confidence boxes
+            if found_standard:
+                break
 
     except Exception as e:
         print("YOLO/OCR prediction error:", e)
@@ -228,14 +245,19 @@ def process_image():
     print("YOLO found no valid plate. Running close-up plate fallback scan...")
     try:
         h_img, w_img = image.shape[:2]
+        # Crop center region to avoid recognizing entire background
+        cy1, cy2 = int(h_img * 0.2), int(h_img * 0.8)
+        cx1, cx2 = int(w_img * 0.1), int(w_img * 0.9)
+        crop = image[cy1:cy2, cx1:cx2]
+        hc, wc = crop.shape[:2]
+
         fallback_slices = [
-            [[0, w_img, int(h_img * 0.3), int(h_img * 0.7)]],
-            [[0, w_img, int(h_img * 0.5), h_img]],
-            [[0, w_img, 0, h_img]]
+            [[0, wc, 0, hc]],
+            [[0, wc, int(hc * 0.35), hc]]
         ]
         for s in fallback_slices:
             with torch.no_grad():
-                rec_results = reader.recognize(image, horizontal_list=s, free_list=[])
+                rec_results = reader.recognize(crop, horizontal_list=s, free_list=[])
             for item in rec_results:
                 raw_text = item[1]
                 plate_num = extract_vehicle_number(raw_text)

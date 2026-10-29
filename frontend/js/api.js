@@ -144,7 +144,7 @@ export const apiDeleteToll = async (id) => {
  * Reduces upload payload from ~8MB to ~150KB for instant inference.
  */
 async function resizeImageForUpload(file, maxDim = 1280, quality = 0.85) {
-    if (!file || !file.type || !file.type.startsWith('image/')) return file;
+    if (!file) return file;
     return new Promise((resolve) => {
         const img = new Image();
         const url = URL.createObjectURL(file);
@@ -152,16 +152,14 @@ async function resizeImageForUpload(file, maxDim = 1280, quality = 0.85) {
             URL.revokeObjectURL(url);
             let w = img.width;
             let h = img.height;
-            if (w <= maxDim && h <= maxDim) {
-                resolve(file);
-                return;
-            }
-            if (w > h) {
-                h = Math.round((h * maxDim) / w);
-                w = maxDim;
-            } else {
-                w = Math.round((w * maxDim) / h);
-                h = maxDim;
+            if (w > maxDim || h > maxDim) {
+                if (w > h) {
+                    h = Math.round((h * maxDim) / w);
+                    w = maxDim;
+                } else {
+                    w = Math.round((w * maxDim) / h);
+                    h = maxDim;
+                }
             }
             const canvas = document.createElement('canvas');
             canvas.width = w;

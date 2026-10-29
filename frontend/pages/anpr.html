@@ -346,7 +346,8 @@
             });
 
             function handleSelectedFile(file) {
-                if (!file.type.startsWith('image/')) {
+                const isImage = (file.type && file.type.startsWith('image/')) || /\.(jpe?g|png|webp|bmp|heic)$/i.test(file.name || '');
+                if (!isImage) {
                     showAlert('alert-container', 'Please select a valid image file (JPEG or PNG).');
                     return;
                 }
