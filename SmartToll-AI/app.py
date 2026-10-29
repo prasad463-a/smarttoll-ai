@@ -248,21 +248,15 @@ def process_image():
             if hp < 8 or wp < 15:
                 continue
 
-            # Upscale plate crop so character strokes are clear and not distorted by downsampling
-            scale = max(1.0, 100.0 / hp)
+            # Resize plate crop to optimal height for OCR clarity without excessive pixels
+            scale = max(1.0, 70.0 / hp)
             target_w = int(wp * scale)
             target_h = int(hp * scale)
             plate_scaled = cv2.resize(plate, (target_w, target_h), interpolation=cv2.INTER_CUBIC)
 
-            # Slices: 1) Full plate, 2) Bottom 65% for 2-line plates, 3) Right 85% to skip left HSRP badge
-            slices = [
-                [0, target_w, 0, target_h],
-                [0, target_w, int(target_h * 0.35), target_h],
-                [int(target_w * 0.15), target_w, 0, target_h]
-            ]
-
+            # Fast Primary Pass: Full plate scan
             with torch.no_grad():
-                rec_results = reader.recognize(plate_scaled, horizontal_list=slices, free_list=[])
+                rec_results = reader.recognize(plate_scaled, horizontal_list=[[0, target_w, 0, target_h]], free_list=[])
 
             for item in rec_results:
                 raw_text = item[1]
@@ -270,11 +264,27 @@ def process_image():
                 plate_str, priority = clean_and_normalize_plate(raw_text)
                 if plate_str:
                     score = priority + (ocr_conf * 10.0) + (box_conf * 5.0)
-                    print(f"Candidate: '{plate_str}' | Score: {round(score, 2)} | Raw: '{raw_text}' | Conf: {round(ocr_conf, 3)}")
+                    print(f"Primary Candidate: '{plate_str}' | Score: {round(score, 2)} | Raw: '{raw_text}' | Conf: {round(ocr_conf, 3)}")
                     candidates.append((plate_str, score))
 
-            # If we found a top-tier Indian plate (priority 110), stop further box scans to save CPU
-            if any(c[1] >= 110 for c in candidates):
+            # If primary scan found a standard Indian plate (score >= 100), finish immediately!
+            if any(c[1] >= 100 for c in candidates):
+                break
+
+            # Secondary Pass: Only if primary pass didn't find a confident plate (for 2-line plates)
+            with torch.no_grad():
+                rec_results_sec = reader.recognize(plate_scaled, horizontal_list=[[0, target_w, int(target_h * 0.35), target_h]], free_list=[])
+
+            for item in rec_results_sec:
+                raw_text = item[1]
+                ocr_conf = float(item[2])
+                plate_str, priority = clean_and_normalize_plate(raw_text)
+                if plate_str:
+                    score = priority + (ocr_conf * 10.0) + (box_conf * 5.0)
+                    print(f"Secondary Candidate: '{plate_str}' | Score: {round(score, 2)} | Raw: '{raw_text}' | Conf: {round(ocr_conf, 3)}")
+                    candidates.append((plate_str, score))
+
+            if any(c[1] >= 100 for c in candidates):
                 break
 
     except Exception as e:

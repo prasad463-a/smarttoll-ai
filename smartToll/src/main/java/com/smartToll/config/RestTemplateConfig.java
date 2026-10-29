@@ -11,8 +11,8 @@ public class RestTemplateConfig {
     @Bean
     public RestTemplate restTemplate() {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(25000); // 25s connect timeout for cloud wakeups
-        factory.setReadTimeout(90000);    // 90s read timeout safely below Render 100s proxy limit
+        factory.setConnectTimeout(30000); // 30s connect timeout for cloud wakeups
+        factory.setReadTimeout(120000);   // 120s read timeout safety buffer
         return new RestTemplate(factory);
     }
 }
