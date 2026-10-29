@@ -46,6 +46,7 @@ def get_model():
     global _model
     if _model is None:
         import torch
+        torch.set_num_threads(1)
         from ultralytics import YOLO
         print("Loading YOLO model from:", MODEL_PATH)
         _model = YOLO(str(MODEL_PATH))
@@ -55,6 +56,7 @@ def get_reader():
     global _reader
     if _reader is None:
         import torch
+        torch.set_num_threads(1)
         import easyocr
         
         has_local_weights = (MODELS_DIR / "english_g2.pth").exists()
@@ -72,24 +74,6 @@ def get_reader():
             download_enabled=not has_local_weights
         )
     return _reader
-
-# Background model warmup to ensure instant sub-second inference on first request
-def _prewarm_models():
-    try:
-        print("Pre-warming YOLO and EasyOCR models and JIT kernels in background...")
-        m = get_model()
-        r = get_reader()
-        dummy = np.zeros((64, 64, 3), dtype=np.uint8)
-        import torch
-        with torch.no_grad():
-            m.predict(source=dummy, imgsz=416, verbose=False)
-            r.recognize(dummy, horizontal_list=[[0, 64, 0, 64]], free_list=[])
-        print("Pre-warming complete! JIT kernels compiled and ready for instant ANPR inference.")
-    except Exception as e:
-        print("Model pre-warm warning:", e)
-
-import threading
-threading.Thread(target=_prewarm_models, daemon=True).start()
 
 
 def extract_vehicle_number(text):
