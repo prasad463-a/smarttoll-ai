@@ -69,7 +69,7 @@
                         <label class="btn btn-light-custom btn-sm" for="filterAll">All</label>
 
                         <input type="radio" class="btn-check" name="statusFilter" id="filterSuccess" value="SUCCESS">
-                        <label class="btn btn-light-custom btn-sm text-success" for="filterSuccess">Cleared</label>
+                        <label class="btn btn-light-custom btn-sm text-success" for="filterSuccess">Success</label>
 
                         <input type="radio" class="btn-check" name="statusFilter" id="filterPending" value="PENDING">
                         <label class="btn btn-light-custom btn-sm text-warning" for="filterPending">Pending</label>
@@ -303,7 +303,7 @@
                         <td class="text-secondary small">${formattedDate}</td>
                         <td>
                             <span class="badge-status ${statusClass}">
-                                <i class="fas fa-circle-check"></i> ${p.paymentStatus || 'CLEARED'}
+                                <i class="fas fa-circle-check"></i> ${p.paymentStatus || 'SUCCESS'}
                             </span>
                         </td>
                         <td class="pe-4 text-center">

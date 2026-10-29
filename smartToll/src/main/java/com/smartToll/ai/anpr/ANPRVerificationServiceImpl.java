@@ -67,6 +67,15 @@ public class ANPRVerificationServiceImpl
                                 LocalDateTime.now()
                         );
 
+        if (payments.isEmpty()) {
+            payments = tollPaymentRepository
+                    .findByVehicleAndPaymentStatusAndValidUntilAfter(
+                            vehicle,
+                            "CLEARED",
+                            LocalDateTime.now()
+                    );
+        }
+
         return !payments.isEmpty();
     }
 }

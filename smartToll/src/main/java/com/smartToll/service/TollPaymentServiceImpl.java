@@ -1,5 +1,6 @@
 package com.smartToll.service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -7,7 +8,6 @@ import org.springframework.stereotype.Service;
 
 import com.smartToll.dao.TollPaymentDAO;
 import com.smartToll.entity.TollPayment;
-import com.smartToll.service.TollPaymentService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -19,6 +19,20 @@ public class TollPaymentServiceImpl implements TollPaymentService {
 
     @Override
     public TollPayment addPayment(TollPayment tollPayment) {
+        if (tollPayment.getPaymentStatus() == null 
+                || tollPayment.getPaymentStatus().isBlank() 
+                || "CLEARED".equalsIgnoreCase(tollPayment.getPaymentStatus())) {
+            tollPayment.setPaymentStatus("SUCCESS");
+        }
+        if (tollPayment.getPaymentTime() == null) {
+            tollPayment.setPaymentTime(LocalDateTime.now());
+        }
+        if (tollPayment.getValidUntil() == null) {
+            tollPayment.setValidUntil(tollPayment.getPaymentTime().plusHours(24));
+        }
+        if (tollPayment.getTransactionId() == null || tollPayment.getTransactionId().isBlank()) {
+            tollPayment.setTransactionId("TXN" + System.currentTimeMillis());
+        }
         return tollPaymentDAO.save(tollPayment);
     }
 

@@ -230,7 +230,9 @@ export const apiAddPayment = async (vehicleId, tollId, amount) => {
             toll: { id: tollId },
             amount: amount,
             transactionId: transactionId,
+            paymentStatus: 'SUCCESS',
             paymentTime: formatDateTime(now),
+            validUntil: formatDateTime(expiresAt),
             expiresAt: formatDateTime(expiresAt)
         })
     });
