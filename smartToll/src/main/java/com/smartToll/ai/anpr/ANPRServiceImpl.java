@@ -14,7 +14,7 @@ public class ANPRServiceImpl implements ANPRService {
     private final RestTemplate restTemplate;
     private final ANPRVerificationService anprVerificationService;
 
-    @Value("${smarttoll.ai.url:http://127.0.0.1:5000/anpr/process}")
+    @Value("${smarttoll.ai.url:${PYTHON_AI_URL:https://smarttoll-python-ai.onrender.com/anpr/process}}")
     private String pythonUrl;
 
     public ANPRServiceImpl(RestTemplate restTemplate, ANPRVerificationService anprVerificationService) {
@@ -24,6 +24,8 @@ public class ANPRServiceImpl implements ANPRService {
 
     @Override
     public ANPRResponse processImage(ANPRRequest request) {
+
+        System.out.println("Processing ANPR request: forwarding to Python AI at " + pythonUrl);
 
         // Step 1: Send image path to Python AI service
         ANPRResponse response = null;

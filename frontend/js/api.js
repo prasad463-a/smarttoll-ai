@@ -91,26 +91,17 @@ export const apiAddVehicle = async (vehicleNumber, vehicleType) => {
 };
 
 export const apiDeleteVehicle = async (id) => {
-    const response = await fetch(`${API_BASE}/vehicle/${id}`, {
+    const response = await fetch(`${API_BASE}/vehicle/delete/${id}`, {
         method: 'DELETE',
         headers: getHeaders()
     });
     return handleResponse(response);
 };
 
-// Toll API
+// Toll Plaza API
 export const apiGetTolls = async () => {
     const response = await fetch(`${API_BASE}/toll/getall`, {
         headers: getHeaders()
-    });
-    return handleResponse(response);
-};
-
-export const apiAddToll = async (name, location, amount, email, password) => {
-    const response = await fetch(`${API_BASE}/toll/add`, {
-        method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify({ name, location, amount, email, password })
     });
     return handleResponse(response);
 };
@@ -122,10 +113,19 @@ export const apiGetTollById = async (id) => {
     return handleResponse(response);
 };
 
-export const apiTollLogin = async (email, password) => {
+export const apiAddToll = async (tollData) => {
+    const response = await fetch(`${API_BASE}/toll/add`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(tollData)
+    });
+    return handleResponse(response);
+};
+
+export const apiLoginToll = async (email, password) => {
     const response = await fetch(`${API_BASE}/toll/login`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getHeaders(),
         body: JSON.stringify({ email, password })
     });
     return handleResponse(response);
@@ -139,13 +139,53 @@ export const apiDeleteToll = async (id) => {
     return handleResponse(response);
 };
 
+/**
+ * Resizes large camera photos (e.g. 5-12MB from mobile devices) to max 1280px.
+ * Reduces upload payload from ~8MB to ~150KB for instant inference.
+ */
+async function resizeImageForUpload(file, maxDim = 1280, quality = 0.85) {
+    if (!file || !file.type || !file.type.startsWith('image/')) return file;
+    return new Promise((resolve) => {
+        const img = new Image();
+        const url = URL.createObjectURL(file);
+        img.onload = () => {
+            URL.revokeObjectURL(url);
+            let w = img.width;
+            let h = img.height;
+            if (w <= maxDim && h <= maxDim) {
+                resolve(file);
+                return;
+            }
+            if (w > h) {
+                h = Math.round((h * maxDim) / w);
+                w = maxDim;
+            } else {
+                w = Math.round((w * maxDim) / h);
+                h = maxDim;
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, w, h);
+            canvas.toBlob((blob) => {
+                resolve(blob || file);
+            }, 'image/jpeg', quality);
+        };
+        img.onerror = () => {
+            URL.revokeObjectURL(url);
+            resolve(file);
+        };
+        img.src = url;
+    });
+}
+
 // ANPR API
 export const apiProcessANPR = async (imageFile) => {
+    const optimizedFile = await resizeImageForUpload(imageFile);
     const formData = new FormData();
-    formData.append('image', imageFile);
+    formData.append('image', optimizedFile, 'vehicle.jpg');
 
-    // We MUST NOT set 'Content-Type': 'application/json' for FormData
-    // The browser will automatically set 'Content-Type': 'multipart/form-data' with the correct boundary
     const headers = getHeaders();
     delete headers['Content-Type'];
 
@@ -168,8 +208,13 @@ export const apiGetPayments = async () => {
 export const apiAddPayment = async (vehicleId, tollId, amount) => {
     const transactionId = 'TXN' + Date.now();
     const now = new Date();
-    const validUntil = new Date(now.getTime() + 24 * 60 * 60 * 1000); // Valid for 24 hours
-    
+    // Valid for 24 hours
+    const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
+    const formatDateTime = (date) => {
+        return date.toISOString().slice(0, 19);
+    };
+
     const response = await fetch(`${API_BASE}/payment/add`, {
         method: 'POST',
         headers: getHeaders(),
@@ -178,10 +223,16 @@ export const apiAddPayment = async (vehicleId, tollId, amount) => {
             toll: { id: tollId },
             amount: amount,
             transactionId: transactionId,
-            paymentStatus: 'SUCCESS',
-            paymentTime: now.toISOString(),
-            validUntil: validUntil.toISOString()
+            paymentTime: formatDateTime(now),
+            expiresAt: formatDateTime(expiresAt)
         })
+    });
+    return handleResponse(response);
+};
+
+export const apiCheckVehiclePayment = async (vehicleId, tollId) => {
+    const response = await fetch(`${API_BASE}/payment/check/${vehicleId}/${tollId}`, {
+        headers: getHeaders()
     });
     return handleResponse(response);
 };
