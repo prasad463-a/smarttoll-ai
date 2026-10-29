@@ -1,5 +1,6 @@
 import os
 import re
+import gc
 import base64
 import pathlib
 from pathlib import Path
@@ -31,7 +32,7 @@ MODEL_PATH = (
     / "weights" / "best.pt"
 )
 
-# Local EasyOCR model directory (bundled inside repo to avoid slow 100MB downloads)
+# Bundled lightweight English recognizer model directory (~15MB only)
 MODELS_DIR = BASE_DIR / "models"
 USER_NET_DIR = BASE_DIR / "models" / "user_net"
 MODELS_DIR.mkdir(parents=True, exist_ok=True)
@@ -58,12 +59,16 @@ def get_reader():
         torch.set_num_threads(1)
         import easyocr
         
-        has_local_weights = (MODELS_DIR / "craft_mlt_25k.pth").exists()
-        print(f"Loading EasyOCR Reader (using local cache: {has_local_weights})...")
+        has_local_weights = (MODELS_DIR / "english_g2.pth").exists()
+        print(f"Loading EasyOCR Recognizer (detector=False, local_cache={has_local_weights})...")
         
+        # detector=False disables the 80MB CRAFT text detector, saving >200MB RAM
+        # and staying safely below Render's 512MB RAM ceiling!
         _reader = easyocr.Reader(
             ["en"],
             gpu=False,
+            detector=False,
+            recognizer=True,
             model_storage_directory=str(MODELS_DIR),
             user_network_directory=str(USER_NET_DIR),
             download_enabled=not has_local_weights
@@ -75,8 +80,8 @@ def extract_vehicle_number(text):
     if not text:
         return None
     cleaned = re.sub(r"[^A-Z0-9]", "", text.upper())
-    # Remove common plate noise prefix like IND / 1ND / IO / CARPLATE
-    cleaned = re.sub(r"^(CARPLATE|PLATE|IND|1ND|IO|I)", "", cleaned)
+    # Remove common plate noise prefix like IND / 1ND / IO / CARPLATE / D
+    cleaned = re.sub(r"^(CARPLATE|PLATE|IND|1ND|IO|I|D|WO)", "", cleaned)
 
     # 1. Standard Indian vehicle number: AP55A1234, MH12DE1433, DL01A1234, KA041234
     m = re.search(r"[A-Z]{2}[0-9]{1,2}[A-Z]{0,3}[0-9]{4}", cleaned)
@@ -104,7 +109,8 @@ def health_check():
         "status": "UP",
         "service": "SmartToll AI ANPR Service",
         "yoloModel": str(MODEL_PATH.name),
-        "version": "1.0.0"
+        "ocrMode": "RecognizerOnly (Low-Memory)",
+        "version": "1.1.0"
     })
 
 
@@ -148,97 +154,100 @@ def process_image():
             "message": "Could not read image (no valid image data provided)"
         }), 400
 
+    import torch
+
+    # Downscale very large mobile photos (>1280px) to conserve RAM
+    h, w = image.shape[:2]
+    max_dim = max(h, w)
+    if max_dim > 1280:
+        scale = 1280.0 / max_dim
+        image = cv2.resize(image, (int(w * scale), int(h * scale)))
+
     # Get models (lazy loaded)
     model = get_model()
     reader = get_reader()
 
     detected_plates = []
 
-    # Step 1: Detect license plates using YOLO
+    # Step 1: Detect license plates using YOLO with no_grad
     try:
-        results = model.predict(source=image, conf=0.18, verbose=False)
+        with torch.no_grad():
+            results = model.predict(source=image, conf=0.18, verbose=False)
+
+        h_img, w_img = image.shape[:2]
         for result in results:
             for box in result.boxes:
                 x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
-                # Add padding around bounding box to capture plate edges
-                h, w = image.shape[:2]
+                # Add slight padding around bounding box to capture plate edges
                 px1 = max(0, x1 - 8)
                 py1 = max(0, y1 - 8)
-                px2 = min(w, x2 + 8)
-                py2 = min(h, y2 + 8)
+                px2 = min(w_img, x2 + 8)
+                py2 = min(h_img, y2 + 8)
                 plate = image[py1:py2, px1:px2]
 
                 if plate.size == 0:
                     continue
 
-                detections = reader.readtext(plate)
-                texts = []
-                for detection in detections:
-                    raw_text = detection[1]
-                    texts.append(raw_text)
-                    plate_num = extract_vehicle_number(raw_text)
-                    print(f"YOLO Box OCR candidate: '{raw_text}' -> '{plate_num}'")
-                    if plate_num and plate_num not in detected_plates:
-                        detected_plates.append(plate_num)
-                
-                # Also check concatenated text in case EasyOCR split the plate across lines
-                if texts:
-                    combined_text = "".join(texts)
-                    comb_plate = extract_vehicle_number(combined_text)
-                    print(f"YOLO Box Combined OCR: '{combined_text}' -> '{comb_plate}'")
-                    if comb_plate and comb_plate not in detected_plates:
-                        detected_plates.append(comb_plate)
+                hp, wp = plate.shape[:2]
+                # Test full plate, bottom half (for 2-line plates), and top half
+                slices = [
+                    [[0, wp, 0, hp]],
+                    [[0, wp, int(hp * 0.35), hp]],
+                    [[0, wp, 0, int(hp * 0.65)]]
+                ]
+
+                for s in slices:
+                    with torch.no_grad():
+                        rec_results = reader.recognize(plate, horizontal_list=s, free_list=[])
+                    for item in rec_results:
+                        raw_text = item[1]
+                        plate_num = extract_vehicle_number(raw_text)
+                        if plate_num and plate_num not in detected_plates:
+                            print(f"Detected candidate: '{raw_text}' -> '{plate_num}'")
+                            detected_plates.append(plate_num)
 
     except Exception as e:
-        print("YOLO prediction error:", e)
+        print("YOLO/OCR prediction error:", e)
+
+    # Free temporary torch tensors
+    gc.collect()
 
     if detected_plates:
-        # Return first valid detected plate
-        plate_res = detected_plates[0]
-        print(f"Successfully detected plate: {plate_res}")
+        # Prioritize standard Indian plates matching ^[A-Z]{2}[0-9]{1,2}[A-Z]{0,3}[0-9]{4}$
+        std_plates = [p for p in detected_plates if re.match(r"^[A-Z]{2}[0-9]{1,2}[A-Z]{0,3}[0-9]{4}$", p)]
+        final_plate = std_plates[0] if std_plates else detected_plates[0]
+
+        print(f"Successfully identified vehicle plate: {final_plate}")
         return jsonify({
-            "vehicleNumber": plate_res,
+            "vehicleNumber": final_plate,
             "vehicleDetected": True,
             "message": "Number plate detected successfully"
         })
 
-    # Step 2: Fallback to full-image OCR if YOLO didn't find a bounding box
-    print("YOLO found no valid plate. Falling back to scaled image OCR scan...")
+    # Step 2: Fallback scan for close-up plate images (center/bottom slices)
+    print("YOLO found no valid plate. Running close-up plate fallback scan...")
     try:
-        # Downscale large mobile images to avoid high memory spikes
-        h, w = image.shape[:2]
-        max_dim = max(h, w)
-        if max_dim > 960:
-            scale = 960.0 / max_dim
-            scan_img = cv2.resize(image, (int(w * scale), int(h * scale)))
-        else:
-            scan_img = image
-
-        full_detections = reader.readtext(scan_img)
-        all_full_texts = []
-        for detection in full_detections:
-            raw_text = detection[1]
-            all_full_texts.append(raw_text)
-            plate_num = extract_vehicle_number(raw_text)
-            print(f"Full-Image OCR candidate: '{raw_text}' -> '{plate_num}'")
-            if plate_num:
-                return jsonify({
-                    "vehicleNumber": plate_num,
-                    "vehicleDetected": True,
-                    "message": "Number plate detected via image scan"
-                })
-        
-        if all_full_texts:
-            comb = "".join(all_full_texts)
-            comb_plate = extract_vehicle_number(comb)
-            if comb_plate:
-                return jsonify({
-                    "vehicleNumber": comb_plate,
-                    "vehicleDetected": True,
-                    "message": "Number plate detected via image scan"
-                })
+        h_img, w_img = image.shape[:2]
+        fallback_slices = [
+            [[0, w_img, int(h_img * 0.3), int(h_img * 0.7)]],
+            [[0, w_img, int(h_img * 0.5), h_img]],
+            [[0, w_img, 0, h_img]]
+        ]
+        for s in fallback_slices:
+            with torch.no_grad():
+                rec_results = reader.recognize(image, horizontal_list=s, free_list=[])
+            for item in rec_results:
+                raw_text = item[1]
+                plate_num = extract_vehicle_number(raw_text)
+                if plate_num:
+                    print(f"Fallback detected: '{raw_text}' -> '{plate_num}'")
+                    return jsonify({
+                        "vehicleNumber": plate_num,
+                        "vehicleDetected": True,
+                        "message": "Number plate detected via image scan"
+                    })
     except Exception as e:
-        print("Full-image OCR error:", e)
+        print("Fallback scan error:", e)
 
     return jsonify({
         "vehicleNumber": None,
