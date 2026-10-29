@@ -76,10 +76,15 @@ def get_reader():
 # Background model warmup to ensure instant sub-second inference on first request
 def _prewarm_models():
     try:
-        print("Pre-warming YOLO and EasyOCR models...")
-        get_model()
-        get_reader()
-        print("Pre-warming complete! Models ready for instant ANPR inference.")
+        print("Pre-warming YOLO and EasyOCR models and JIT kernels in background...")
+        m = get_model()
+        r = get_reader()
+        dummy = np.zeros((64, 64, 3), dtype=np.uint8)
+        import torch
+        with torch.no_grad():
+            m.predict(source=dummy, imgsz=416, verbose=False)
+            r.recognize(dummy, horizontal_list=[[0, 64, 0, 64]], free_list=[])
+        print("Pre-warming complete! JIT kernels compiled and ready for instant ANPR inference.")
     except Exception as e:
         print("Model pre-warm warning:", e)
 
@@ -194,7 +199,8 @@ def process_image():
                 all_boxes.append(box)
         all_boxes.sort(key=lambda b: float(b.conf[0]) if b.conf is not None else 0.0, reverse=True)
 
-        for box in all_boxes[:2]:  # Check at most top 2 highest confidence candidate boxes
+        if all_boxes:
+            box = all_boxes[0]  # Prioritize the single highest-confidence YOLO bounding box
             x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
             # Add slight padding around bounding box to capture plate edges
             px1 = max(0, x1 - 8)
@@ -203,36 +209,36 @@ def process_image():
             py2 = min(h_img, y2 + 8)
             plate = image[py1:py2, px1:px2]
 
-            if plate.size == 0:
-                continue
+            if plate.size > 0:
+                hp, wp = plate.shape[:2]
+                # Batch full plate and bottom half (for 2-line plates) in ONE single call!
+                slices = [
+                    [0, wp, 0, hp],
+                    [0, wp, int(hp * 0.35), hp]
+                ]
 
-            hp, wp = plate.shape[:2]
-            # Test full plate and bottom half (for 2-line plates)
-            slices = [
-                [[0, wp, 0, hp]],
-                [[0, wp, int(hp * 0.35), hp]],
-                [[0, wp, 0, int(hp * 0.65)]]
-            ]
-
-            found_standard = False
-            for s in slices:
                 with torch.no_grad():
-                    rec_results = reader.recognize(plate, horizontal_list=s, free_list=[])
+                    rec_results = reader.recognize(plate, horizontal_list=slices, free_list=[])
                 for item in rec_results:
                     raw_text = item[1]
                     plate_num = extract_vehicle_number(raw_text)
                     if plate_num and plate_num not in detected_plates:
                         print(f"Detected candidate: '{raw_text}' -> '{plate_num}'")
                         detected_plates.append(plate_num)
-                        if re.match(r"^[A-Z]{2}[0-9]{1,2}[A-Z]{0,3}[0-9]{4}$", plate_num):
-                            found_standard = True
-                            break
-                if found_standard:
-                    break
 
-            # If standard plate format identified, no need to check lower-confidence boxes
-            if found_standard:
-                break
+        # Fallback to 2nd box only if 1st box yielded no candidates
+        if not detected_plates and len(all_boxes) > 1:
+            box = all_boxes[1]
+            x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
+            plate = image[max(0, y1 - 8):min(h_img, y2 + 8), max(0, x1 - 8):min(w_img, x2 + 8)]
+            if plate.size > 0:
+                hp, wp = plate.shape[:2]
+                with torch.no_grad():
+                    rec_results = reader.recognize(plate, horizontal_list=[[0, wp, 0, hp]], free_list=[])
+                for item in rec_results:
+                    plate_num = extract_vehicle_number(item[1])
+                    if plate_num and plate_num not in detected_plates:
+                        detected_plates.append(plate_num)
 
     except Exception as e:
         print("YOLO/OCR prediction error:", e)
