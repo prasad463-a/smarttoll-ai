@@ -113,7 +113,13 @@ export const apiGetTollById = async (id) => {
     return handleResponse(response);
 };
 
-export const apiAddToll = async (tollData) => {
+export const apiAddToll = async (nameOrObj, location, amount, email, password) => {
+    let tollData;
+    if (typeof nameOrObj === 'object') {
+        tollData = nameOrObj;
+    } else {
+        tollData = { name: nameOrObj, location, amount, email, password };
+    }
     const response = await fetch(`${API_BASE}/toll/add`, {
         method: 'POST',
         headers: getHeaders(),
@@ -130,6 +136,9 @@ export const apiLoginToll = async (email, password) => {
     });
     return handleResponse(response);
 };
+
+// Alias so both apiLoginToll and apiTollLogin work seamlessly across all pages
+export const apiTollLogin = apiLoginToll;
 
 export const apiDeleteToll = async (id) => {
     const response = await fetch(`${API_BASE}/toll/${id}`, {
