@@ -76,31 +76,82 @@ def get_reader():
     return _reader
 
 
-def extract_vehicle_number(text):
+INDIAN_STATES = (
+    "AP", "TS", "TG", "MH", "DL", "KA", "TN", "KL", "UP", "MP", "GJ", "RJ", "HR",
+    "PB", "WB", "OD", "JH", "CH", "BR", "AS", "UK", "HP", "GA", "JK", "LA", "PY",
+    "TR", "MN", "ML", "NL", "MZ", "SK", "AR", "AN", "DD", "DN", "LD", "BH"
+)
+
+def clean_and_normalize_plate(raw_text):
+    if not raw_text:
+        return (None, 0)
+    
+    text = raw_text.upper().strip()
+    text = re.sub(r"[^A-Z0-9]", "", text)
     if not text:
-        return None
-    cleaned = re.sub(r"[^A-Z0-9]", "", text.upper())
-    # Remove common plate noise prefix like IND / 1ND / IO / CARPLATE / D
-    cleaned = re.sub(r"^(CARPLATE|PLATE|IND|1ND|IO|I|D|WO)", "", cleaned)
+        return (None, 0)
 
-    # 1. Standard Indian vehicle number: AP55A1234, MH12DE1433, DL01A1234, KA041234
-    m = re.search(r"[A-Z]{2}[0-9]{1,2}[A-Z]{0,3}[0-9]{4}", cleaned)
+    # 1. Standard Indian pattern WITH explicit series letters: (STATE)(1-2 DIGITS)(1-3 LETTERS)(4 DIGITS)
+    # e.g. AP 55 A 9791, DL 01 AB 1234
+    for state in INDIAN_STATES:
+        pattern = r"(" + state + r")([0-9OISZB]{1,2})([A-Z]{1,3})([0-9OISZB]{4})"
+        m = re.search(pattern, text)
+        if m:
+            s, rto, series, num = m.groups()
+            def to_digits(d):
+                return d.replace("O", "0").replace("I", "1").replace("S", "5").replace("Z", "2").replace("B", "8")
+            rto = to_digits(rto)
+            num = to_digits(num)
+            return (f"{s}{rto}{series}{num}", 110)
+
+    # 2. Standard Indian pattern where series letter was misread as a digit (e.g. 'A' misread as '4'):
+    for state in INDIAN_STATES:
+        pattern = r"(" + state + r")([0-9OISZB]{2})([A-Z0-9]{1,2})([0-9OISZB]{4})"
+        m = re.search(pattern, text)
+        if m:
+            s, rto, series, num = m.groups()
+            def to_digits(d):
+                return d.replace("O", "0").replace("I", "1").replace("S", "5").replace("Z", "2").replace("B", "8")
+            def to_letters(l):
+                return l.replace("4", "A").replace("0", "O").replace("8", "B").replace("1", "I").replace("5", "S").replace("2", "Z")
+            rto = to_digits(rto)
+            series = to_letters(series)
+            num = to_digits(num)
+            if series.isalpha():
+                return (f"{s}{rto}{series}{num}", 100)
+
+    # 3. Bharat Series format: e.g. 22BH1234AA
+    m = re.search(r"([0-9]{2}BH[0-9]{4}[A-Z]{1,2})", text)
     if m:
-        return m.group(0)
+        return (m.group(1), 95)
 
-    # 2. Bharat Series: 22BH1234AA
-    m = re.search(r"[0-9]{2}BH[0-9]{4}[A-Z]{1,2}", cleaned)
+    # 4. Old-style Indian plate without series letter (STATE + 1-2 digits + 4 digits at end):
+    for state in INDIAN_STATES:
+        pattern = r"(" + state + r")([0-9]{1,2})([0-9]{4})$"
+        m = re.search(pattern, text)
+        if m:
+            s, rto, num = m.groups()
+            return (f"{s}{rto}{num}", 80)
+
+    # 5. Generic standard 2-letter prefix format with letters and digits:
+    m = re.search(r"([A-Z]{2}[0-9]{1,2}[A-Z]{1,3}[0-9]{4})", text)
     if m:
-        return m.group(0)
+        return (m.group(1), 70)
 
-    # 3. Generic alphanumeric candidate (5 to 12 chars with both letters and digits)
-    if 5 <= len(cleaned) <= 12:
-        has_letters = bool(re.search(r"[A-Z]", cleaned))
-        has_digits = bool(re.search(r"[0-9]", cleaned))
-        if has_letters and has_digits:
-            return cleaned
+    # 6. Fallback alphanumeric candidate (must have at least 2 letters and 4 digits):
+    cleaned = re.sub(r"^(IND|1ND|IC|ID|IO|WO|CARPLATE|PLATE)", "", text)
+    if 7 <= len(cleaned) <= 10:
+        letters = re.findall(r"[A-Z]", cleaned)
+        digits = re.findall(r"[0-9]", cleaned)
+        if len(letters) >= 2 and len(digits) >= 4:
+            return (cleaned, 35)
 
-    return None
+    return (None, 0)
+
+
+def extract_vehicle_number(text):
+    plate, _ = clean_and_normalize_plate(text)
+    return plate
 
 
 @app.route("/", methods=["GET"])
@@ -167,7 +218,7 @@ def process_image():
     model = get_model()
     reader = get_reader()
 
-    detected_plates = []
+    candidates = []
 
     # Step 1: Detect license plates using YOLO with no_grad
     try:
@@ -183,46 +234,48 @@ def process_image():
                 all_boxes.append(box)
         all_boxes.sort(key=lambda b: float(b.conf[0]) if b.conf is not None else 0.0, reverse=True)
 
-        if all_boxes:
-            box = all_boxes[0]  # Prioritize the single highest-confidence YOLO bounding box
+        # Evaluate up to the top 2 detected boxes with confidence > 0.18
+        for box in all_boxes[:2]:
+            box_conf = float(box.conf[0]) if box.conf is not None else 0.5
             x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
-            # Add slight padding around bounding box to capture plate edges
-            px1 = max(0, x1 - 8)
-            py1 = max(0, y1 - 8)
-            px2 = min(w_img, x2 + 8)
-            py2 = min(h_img, y2 + 8)
+            px1 = max(0, x1 - 6)
+            py1 = max(0, y1 - 6)
+            px2 = min(w_img, x2 + 6)
+            py2 = min(h_img, y2 + 6)
             plate = image[py1:py2, px1:px2]
 
-            if plate.size > 0:
-                hp, wp = plate.shape[:2]
-                # Batch full plate and bottom half (for 2-line plates) in ONE single call!
-                slices = [
-                    [0, wp, 0, hp],
-                    [0, wp, int(hp * 0.35), hp]
-                ]
+            hp, wp = plate.shape[:2]
+            if hp < 8 or wp < 15:
+                continue
 
-                with torch.no_grad():
-                    rec_results = reader.recognize(plate, horizontal_list=slices, free_list=[])
-                for item in rec_results:
-                    raw_text = item[1]
-                    plate_num = extract_vehicle_number(raw_text)
-                    if plate_num and plate_num not in detected_plates:
-                        print(f"Detected candidate: '{raw_text}' -> '{plate_num}'")
-                        detected_plates.append(plate_num)
+            # Upscale plate crop so character strokes are clear and not distorted by downsampling
+            scale = max(1.0, 100.0 / hp)
+            target_w = int(wp * scale)
+            target_h = int(hp * scale)
+            plate_scaled = cv2.resize(plate, (target_w, target_h), interpolation=cv2.INTER_CUBIC)
 
-        # Fallback to 2nd box only if 1st box yielded no candidates
-        if not detected_plates and len(all_boxes) > 1:
-            box = all_boxes[1]
-            x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
-            plate = image[max(0, y1 - 8):min(h_img, y2 + 8), max(0, x1 - 8):min(w_img, x2 + 8)]
-            if plate.size > 0:
-                hp, wp = plate.shape[:2]
-                with torch.no_grad():
-                    rec_results = reader.recognize(plate, horizontal_list=[[0, wp, 0, hp]], free_list=[])
-                for item in rec_results:
-                    plate_num = extract_vehicle_number(item[1])
-                    if plate_num and plate_num not in detected_plates:
-                        detected_plates.append(plate_num)
+            # Slices: 1) Full plate, 2) Bottom 65% for 2-line plates, 3) Right 85% to skip left HSRP badge
+            slices = [
+                [0, target_w, 0, target_h],
+                [0, target_w, int(target_h * 0.35), target_h],
+                [int(target_w * 0.15), target_w, 0, target_h]
+            ]
+
+            with torch.no_grad():
+                rec_results = reader.recognize(plate_scaled, horizontal_list=slices, free_list=[])
+
+            for item in rec_results:
+                raw_text = item[1]
+                ocr_conf = float(item[2])
+                plate_str, priority = clean_and_normalize_plate(raw_text)
+                if plate_str:
+                    score = priority + (ocr_conf * 10.0) + (box_conf * 5.0)
+                    print(f"Candidate: '{plate_str}' | Score: {round(score, 2)} | Raw: '{raw_text}' | Conf: {round(ocr_conf, 3)}")
+                    candidates.append((plate_str, score))
+
+            # If we found a top-tier Indian plate (priority 110), stop further box scans to save CPU
+            if any(c[1] >= 110 for c in candidates):
+                break
 
     except Exception as e:
         print("YOLO/OCR prediction error:", e)
@@ -230,11 +283,9 @@ def process_image():
     # Free temporary torch tensors
     gc.collect()
 
-    if detected_plates:
-        # Prioritize standard Indian plates matching ^[A-Z]{2}[0-9]{1,2}[A-Z]{0,3}[0-9]{4}$
-        std_plates = [p for p in detected_plates if re.match(r"^[A-Z]{2}[0-9]{1,2}[A-Z]{0,3}[0-9]{4}$", p)]
-        final_plate = std_plates[0] if std_plates else detected_plates[0]
-
+    if candidates:
+        candidates.sort(key=lambda c: c[1], reverse=True)
+        final_plate = candidates[0][0]
         print(f"Successfully identified vehicle plate: {final_plate}")
         return jsonify({
             "vehicleNumber": final_plate,
@@ -246,29 +297,35 @@ def process_image():
     print("YOLO found no valid plate. Running close-up plate fallback scan...")
     try:
         h_img, w_img = image.shape[:2]
-        # Crop center region to avoid recognizing entire background
-        cy1, cy2 = int(h_img * 0.2), int(h_img * 0.8)
-        cx1, cx2 = int(w_img * 0.1), int(w_img * 0.9)
+        cy1, cy2 = int(h_img * 0.15), int(h_img * 0.85)
+        cx1, cx2 = int(w_img * 0.08), int(w_img * 0.92)
         crop = image[cy1:cy2, cx1:cx2]
         hc, wc = crop.shape[:2]
 
         fallback_slices = [
-            [[0, wc, 0, hc]],
-            [[0, wc, int(hc * 0.35), hc]]
+            [0, wc, 0, hc],
+            [0, wc, int(hc * 0.35), hc],
+            [int(wc * 0.15), wc, 0, hc]
         ]
-        for s in fallback_slices:
-            with torch.no_grad():
-                rec_results = reader.recognize(crop, horizontal_list=s, free_list=[])
-            for item in rec_results:
-                raw_text = item[1]
-                plate_num = extract_vehicle_number(raw_text)
-                if plate_num:
-                    print(f"Fallback detected: '{raw_text}' -> '{plate_num}'")
-                    return jsonify({
-                        "vehicleNumber": plate_num,
-                        "vehicleDetected": True,
-                        "message": "Number plate detected via image scan"
-                    })
+        with torch.no_grad():
+            rec_results = reader.recognize(crop, horizontal_list=fallback_slices, free_list=[])
+        for item in rec_results:
+            raw_text = item[1]
+            ocr_conf = float(item[2])
+            plate_str, priority = clean_and_normalize_plate(raw_text)
+            if plate_str:
+                score = priority + (ocr_conf * 10.0)
+                candidates.append((plate_str, score))
+
+        if candidates:
+            candidates.sort(key=lambda c: c[1], reverse=True)
+            final_plate = candidates[0][0]
+            print(f"Fallback detected plate: {final_plate}")
+            return jsonify({
+                "vehicleNumber": final_plate,
+                "vehicleDetected": True,
+                "message": "Number plate detected via image scan"
+            })
     except Exception as e:
         print("Fallback scan error:", e)
 
