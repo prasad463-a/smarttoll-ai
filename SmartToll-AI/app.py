@@ -1,8 +1,10 @@
 import os
 import re
+import base64
 from pathlib import Path
 from flask import Flask, request, jsonify
 import cv2
+import numpy as np
 
 app = Flask(__name__)
 try:
@@ -44,6 +46,33 @@ def get_reader():
     return _reader
 
 
+def extract_vehicle_number(text):
+    if not text:
+        return None
+    cleaned = re.sub(r"[^A-Z0-9]", "", text.upper())
+    # Remove common plate noise prefix like IND / 1ND / IO
+    cleaned = re.sub(r"^(IND|1ND|IO|I)", "", cleaned)
+
+    # 1. Standard Indian vehicle number: AP55A1234, MH12DE1433, DL01A1234, KA041234
+    m = re.search(r"[A-Z]{2}[0-9]{1,2}[A-Z]{0,3}[0-9]{4}", cleaned)
+    if m:
+        return m.group(0)
+
+    # 2. Bharat Series: 22BH1234AA
+    m = re.search(r"[0-9]{2}BH[0-9]{4}[A-Z]{1,2}", cleaned)
+    if m:
+        return m.group(0)
+
+    # 3. Generic alphanumeric candidate (5 to 11 chars with both letters and digits)
+    if 5 <= len(cleaned) <= 12:
+        has_letters = bool(re.search(r"[A-Z]", cleaned))
+        has_digits = bool(re.search(r"[0-9]", cleaned))
+        if has_letters and has_digits:
+            return cleaned
+
+    return None
+
+
 @app.route("/", methods=["GET"])
 def health_check():
     return jsonify({
@@ -56,66 +85,101 @@ def health_check():
 
 @app.route("/anpr/process", methods=["POST"])
 def process_image():
+    image = None
     data = request.get_json(silent=True) or {}
-    image_path = data.get("imagePath")
 
-    # Support direct file upload via multipart/form-data
-    if not image_path and "image" in request.files:
-        uploaded_file = request.files["image"]
-        temp_dest = BASE_DIR / "temp_upload.jpg"
-        uploaded_file.save(str(temp_dest))
-        image_path = str(temp_dest)
+    # 1. Base64 decoded image (ideal for cloud microservices)
+    if "imageBase64" in data and data["imageBase64"]:
+        try:
+            b64_str = data["imageBase64"]
+            if "," in b64_str:
+                b64_str = b64_str.split(",", 1)[1]
+            img_bytes = base64.b64decode(b64_str)
+            nparr = np.frombuffer(img_bytes, np.uint8)
+            image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        except Exception as e:
+            print("Failed to decode imageBase64:", e)
 
-    if not image_path:
-        return jsonify({
-            "vehicleDetected": False,
-            "vehicleNumber": None,
-            "message": "Image path or image file is missing"
-        }), 400
+    # 2. Direct multipart/form-data file upload
+    if image is None and "image" in request.files:
+        try:
+            file = request.files["image"]
+            img_bytes = file.read()
+            nparr = np.frombuffer(img_bytes, np.uint8)
+            image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        except Exception as e:
+            print("Failed to read uploaded image:", e)
 
-    image = cv2.imread(image_path)
+    # 3. Local disk imagePath (for local testing)
+    if image is None:
+        image_path = data.get("imagePath")
+        if image_path and os.path.exists(image_path):
+            image = cv2.imread(image_path)
 
     if image is None:
         return jsonify({
             "vehicleDetected": False,
             "vehicleNumber": None,
-            "message": "Could not read image file"
+            "message": "Could not read image (no valid image data provided)"
         }), 400
 
     # Get models (lazy loaded)
     model = get_model()
     reader = get_reader()
 
-    # Detect license plates using YOLO
-    results = model.predict(
-        source=image,
-        conf=0.25,
-        verbose=False
-    )
+    detected_plates = []
 
-    for result in results:
-        for box in result.boxes:
-            x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
-            plate = image[y1:y2, x1:x2]
+    # Step 1: Detect license plates using YOLO
+    try:
+        results = model.predict(source=image, conf=0.20, verbose=False)
+        for result in results:
+            for box in result.boxes:
+                x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
+                # Add padding around bounding box to capture edges
+                h, w = image.shape[:2]
+                px1 = max(0, x1 - 5)
+                py1 = max(0, y1 - 5)
+                px2 = min(w, x2 + 5)
+                py2 = min(h, y2 + 5)
+                plate = image[py1:py2, px1:px2]
 
-            if plate.size == 0:
-                continue
+                if plate.size == 0:
+                    continue
 
-            # Read text from the cropped plate
-            detections = reader.readtext(plate)
+                detections = reader.readtext(plate)
+                for detection in detections:
+                    raw_text = detection[1]
+                    plate_num = extract_vehicle_number(raw_text)
+                    print(f"YOLO Box OCR candidate: '{raw_text}' -> '{plate_num}'")
+                    if plate_num:
+                        detected_plates.append(plate_num)
+    except Exception as e:
+        print("YOLO prediction error:", e)
 
-            for detection in detections:
-                text = detection[1].upper()
-                cleaned_text = re.sub(r"[^A-Z0-9]", "", text)
-                print("OCR candidate:", cleaned_text)
+    if detected_plates:
+        # Return first valid detected plate
+        return jsonify({
+            "vehicleNumber": detected_plates[0],
+            "vehicleDetected": True,
+            "message": "Number plate detected successfully"
+        })
 
-                # Indian vehicle number format
-                if re.match(r"^[A-Z]{2}[0-9]{1,2}[A-Z]{1,3}[0-9]{4}$", cleaned_text):
-                    return jsonify({
-                        "vehicleNumber": cleaned_text,
-                        "vehicleDetected": True,
-                        "message": "Number plate detected successfully"
-                    })
+    # Step 2: Fallback to full-image OCR if YOLO didn't find a bounding box
+    print("YOLO found no valid plate. Falling back to full-image OCR scan...")
+    try:
+        full_detections = reader.readtext(image)
+        for detection in full_detections:
+            raw_text = detection[1]
+            plate_num = extract_vehicle_number(raw_text)
+            print(f"Full-Image OCR candidate: '{raw_text}' -> '{plate_num}'")
+            if plate_num:
+                return jsonify({
+                    "vehicleNumber": plate_num,
+                    "vehicleDetected": True,
+                    "message": "Number plate detected via image scan"
+                })
+    except Exception as e:
+        print("Full-image OCR error:", e)
 
     return jsonify({
         "vehicleNumber": None,
