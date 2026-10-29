@@ -12,7 +12,7 @@ public class RestTemplateConfig {
     public RestTemplate restTemplate() {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(25000); // 25s connect timeout for cloud wakeups
-        factory.setReadTimeout(75000);    // 75s read timeout to safely allow AI cold-start inference
+        factory.setReadTimeout(90000);    // 90s read timeout safely below Render 100s proxy limit
         return new RestTemplate(factory);
     }
 }

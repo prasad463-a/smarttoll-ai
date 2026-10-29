@@ -435,7 +435,7 @@
                 } catch (err) {
                     console.error('ANPR Error:', err);
                     liveLaser.classList.add('d-none');
-                    showAlert('alert-container', 'AI inference failed. Please ensure the Python backend is running.');
+                    showAlert('alert-container', 'AI inference failed: ' + (err.message || 'Please ensure the backend service is running.'));
                     resetGateUI();
                 } finally {
                     processBtn.disabled = false;
