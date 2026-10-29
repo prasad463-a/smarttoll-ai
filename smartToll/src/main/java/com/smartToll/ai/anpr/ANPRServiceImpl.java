@@ -25,18 +25,19 @@ public class ANPRServiceImpl implements ANPRService {
     @Override
     public ANPRResponse processImage(ANPRRequest request) {
 
-        System.out.println("Processing ANPR request: forwarding to Python AI at " + pythonUrl);
+        String targetUrl = resolveAiUrl();
+        System.out.println("Processing ANPR request: forwarding to Python AI at " + targetUrl);
 
         // Step 1: Send image path to Python AI service
         ANPRResponse response = null;
         try {
             response = restTemplate.postForObject(
-                    pythonUrl,
+                    targetUrl,
                     request,
                     ANPRResponse.class
             );
         } catch (Exception ex) {
-            System.err.println("Warning: Python AI service unreachable at " + pythonUrl + ": " + ex.getMessage());
+            System.err.println("Warning: Python AI service unreachable at " + targetUrl + ": " + ex.getMessage());
             response = new ANPRResponse();
             response.setVehicleDetected(false);
             response.setVehicleNumber(null);
@@ -94,5 +95,16 @@ public class ANPRServiceImpl implements ANPRService {
         }
 
         return response;
+    }
+
+    private String resolveAiUrl() {
+        // Fast-path: Check if local Python AI is active on localhost:5000 (0.3s response)
+        try (java.net.Socket s = new java.net.Socket()) {
+            s.connect(new java.net.InetSocketAddress("127.0.0.1", 5000), 150);
+            return "http://127.0.0.1:5000/anpr/process";
+        } catch (Exception ignored) {
+            // Local not reachable; use configured cloud URL
+            return pythonUrl;
+        }
     }
 }

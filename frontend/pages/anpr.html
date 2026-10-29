@@ -397,7 +397,7 @@
                 document.getElementById('resultsPlaceholder').classList.add('d-none');
                 document.getElementById('resultsActiveArea').classList.remove('d-none');
                 document.getElementById('detectedPlateBox').innerHTML = '<div class="spinner-border text-info" role="status"></div>';
-                document.getElementById('detectedStatusNote').textContent = 'Analyzing YOLOv11 bounding boxes & OCR characters...';
+                document.getElementById('detectedStatusNote').textContent = 'Analyzing plate via YOLOv11 & OCR... (First cloud scan may take ~30s while free AI service wakes up)';
                 document.getElementById('verificationResult').innerHTML = '';
 
                 try {

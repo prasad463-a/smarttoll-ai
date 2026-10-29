@@ -149,10 +149,10 @@ export const apiDeleteToll = async (id) => {
 };
 
 /**
- * Resizes large camera photos (e.g. 5-12MB from mobile devices) to max 1280px.
- * Reduces upload payload from ~8MB to ~150KB for instant inference.
+ * Resizes large camera photos (e.g. 5-12MB from mobile devices) to max 800px.
+ * Reduces upload payload from ~8MB to ~35KB for near-instant mobile transmission and inference.
  */
-async function resizeImageForUpload(file, maxDim = 1280, quality = 0.85) {
+async function resizeImageForUpload(file, maxDim = 800, quality = 0.8) {
     if (!file) return file;
     return new Promise((resolve) => {
         const img = new Image();

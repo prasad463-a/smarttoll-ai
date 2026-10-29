@@ -156,11 +156,11 @@ def process_image():
 
     import torch
 
-    # Downscale very large mobile photos (>1280px) to conserve RAM
+    # Downscale very large photos (>800px) for maximum CPU inference speed
     h, w = image.shape[:2]
     max_dim = max(h, w)
-    if max_dim > 1280:
-        scale = 1280.0 / max_dim
+    if max_dim > 800:
+        scale = 800.0 / max_dim
         image = cv2.resize(image, (int(w * scale), int(h * scale)))
 
     # Get models (lazy loaded)
